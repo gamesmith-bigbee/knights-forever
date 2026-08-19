@@ -193,7 +193,7 @@ function reset(){
  staminaTimer=setInterval(()=>{if(!locked){stamina=Math.min(STAMINA_MAX,stamina+STAMINA_REGEN*0.1);updateStamina()}},100);
  updateStamina();
  shield=shieldParams().max;clearInterval(shieldTimer);
- shieldTimer=setInterval(()=>{if(!locked){const sp=shieldParams();shield=Math.min(sp.max,shield+sp.regen*0.1);updateShield()}},100);
+ shieldTimer=setInterval(()=>{if(!locked&&!defending){const sp=shieldParams();shield=Math.min(sp.max,shield+sp.regen*0.1);updateShield()}},100);
  updateShield();
  const tut=document.querySelector('#tutorialCard');
  if(localStorage.getItem('kk_tutorial')){tut.style.display='none'}else{tut.style.display='';localStorage.setItem('kk_tutorial','1')}
