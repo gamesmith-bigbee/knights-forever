@@ -49,6 +49,10 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 .hp.player{left:3%}.hp.enemy{right:3%}.hp i{display:block;height:100%;background:#c74a3f;width:100%;transition:width .2s}.hp span{position:absolute;inset:0;text-align:center;font:700 12px Arial;line-height:18px}
 .telegraph{position:absolute;left:50%;top:48px;transform:translateX(-50%);background:#fff6df;border:3px solid var(--ink);border-radius:15px;padding:7px 12px;font-weight:900;z-index:4;white-space:nowrap}
 .flash{animation:flash .18s 2}@keyframes flash{50%{filter:brightness(2) drop-shadow(0 6px 0 rgba(42,37,34,.25))}}
+.telegraph.warn{animation:pulseWarn .5s infinite}@keyframes pulseWarn{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.08)}}
+.arena.shake{animation:shake .4s}@keyframes shake{10%,90%{transform:translateX(-3px)}20%,80%{transform:translateX(5px)}30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
+.fighter.pop{animation:popIn .5s ease-out}@keyframes popIn{0%{transform:scale(.6);opacity:.4}60%{transform:scale(1.12)}100%{transform:scale(1)}}
+.fighter.enemy.pop{animation:popInEnemy .5s ease-out}@keyframes popInEnemy{0%{transform:scaleX(-1) scale(.6);opacity:.4}60%{transform:scaleX(-1) scale(1.12)}100%{transform:scaleX(-1) scale(1)}}
 .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .control{height:82px;touch-action:none}
 .defend{--shield:100%;background:linear-gradient(to right,#b7d3df 0%,#b7d3df var(--shield),#5f7480 var(--shield),#5f7480 100%);transition:background .15s}
@@ -135,12 +139,12 @@ const STAMINA_MAX=100, STAMINA_COST=45, STAMINA_REGEN=25;
 let stamina=STAMINA_MAX, staminaTimer=null;
 const SHIELD_MAX=100;
 let shield=SHIELD_MAX, shieldTimer=null;
-function shieldParams(){return S.shield==='steel'?{cost:20,regen:16}:{cost:28,regen:12}}
+function shieldParams(){return S.shield==='steel'?{cost:20,regen:13}:{cost:35,regen:6}}
 
 const ENEMY_TYPES=[
- {name:'Bandit',hue:0,idle:'assets/bandit/idle.png',attack:'assets/bandit/attack.png',dmgMin:10,dmgMax:16,delayMin:1100,delayMax:2600,reactMs:750,minLevel:1},
- {name:'Orc Raider',hue:0,idle:'assets/orc/idle.png',attack:'assets/orc/attack.png',dmgMin:14,dmgMax:20,delayMin:900,delayMax:2100,reactMs:600,minLevel:1},
- {name:'Knight Captain',hue:280,idle:'assets/knight/idle-front.png',attack:'assets/knight/attack.png',dmgMin:17,dmgMax:24,delayMin:700,delayMax:1700,reactMs:480,minLevel:4}
+ {name:'Bandit',hue:0,folder:'bandit',idle:'assets/bandit/idle.png',attack:'assets/bandit/attack.png',dmgMin:10,dmgMax:16,delayMin:1100,delayMax:2600,reactMs:750,minLevel:1},
+ {name:'Orc Raider',hue:0,folder:'orc',idle:'assets/orc/idle.png',attack:'assets/orc/attack.png',dmgMin:14,dmgMax:20,delayMin:900,delayMax:2100,reactMs:600,minLevel:1},
+ {name:'Knight Captain',hue:280,folder:'knight',idle:'assets/knight/idle-front.png',attack:'assets/knight/attack.png',dmgMin:17,dmgMax:24,delayMin:700,delayMax:1700,reactMs:480,minLevel:4}
 ];
 let currentEnemy=ENEMY_TYPES[0];
 
@@ -190,9 +194,10 @@ function reset(){
 function schedule(){if(locked)return;timer=setTimeout(enemyAttack,currentEnemy.delayMin+Math.random()*(currentEnemy.delayMax-currentEnemy.delayMin))}
 function enemyAttack(){
  if(locked)return;const t=document.querySelector('#telegraph'),e=document.querySelector('#enemy');
- t.textContent='⚠️ INCOMING ATTACK!';e.src=currentEnemy.attack;e.classList.add('attackpose');
+ t.textContent='⚠️ INCOMING ATTACK!';t.classList.add('warn');e.src=currentEnemy.attack;e.classList.add('attackpose');
  setTimeout(()=>{
   if(locked)return;
+  t.classList.remove('warn');
   const sp=shieldParams();
   if(defending&&shield>=sp.cost){
    shield-=sp.cost;updateShield();
@@ -211,7 +216,7 @@ function enemyAttack(){
    else{t.textContent='💥 HIT!';document.querySelector('#log').textContent='You took '+d+' damage. Hold DEFEND when the warning appears.'}
    const p=document.querySelector('#player');p.src='assets/knight/injured.png';p.classList.remove('defendpose');
    setTimeout(()=>{if(!locked)p.src='assets/knight/idle-front.png'},400);
-   flash(p);if(hp<=0){finish(false);return}
+   flash(p);shakeArena();if(hp<=0){finish(false);return}
   }
   e.src=currentEnemy.idle;e.className='fighter enemy';schedule();
  },currentEnemy.reactMs)
@@ -231,11 +236,17 @@ function finish(win){
  locked=true;clearTimeout(timer);clearInterval(staminaTimer);clearInterval(shieldTimer);
  document.querySelector('#attack').disabled=true;
  document.querySelector('#defend').disabled=true;
+ const p=document.querySelector('#player'),e=document.querySelector('#enemy');
+ p.classList.remove('attackpose','defendpose');e.classList.remove('attackpose');
+ p.src='assets/knight/'+(win?'victory':'defeated')+'.png';
+ e.src='assets/'+currentEnemy.folder+'/'+(win?'defeated':'victory')+'.png';
+ (win?p:e).classList.add('pop');
  if(win){let g=35+Math.floor(Math.random()*31);S.gold+=g;xp(30);document.querySelector('#telegraph').textContent='🏆 VICTORY!';document.querySelector('#log').textContent='Defeated the '+currentEnemy.name+'! +'+g+' gold and +30 XP.'}
  else{document.querySelector('#telegraph').textContent='💀 DEFEAT';document.querySelector('#log').textContent='You were defeated. Try defending more often.'}
  save();
 }
 function flash(el){el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),400)}
+function shakeArena(){const a=document.querySelector('#arena');a.classList.remove('shake');void a.offsetWidth;a.classList.add('shake')}
 
 const db=document.querySelector('#defend');
 db.addEventListener('pointerdown',e=>{e.preventDefault();if(db.disabled||shield<shieldParams().cost)return;defending=true;db.textContent='🛡️ DEFENDING';const p=document.querySelector('#player');p.src='assets/knight/defend.png';p.classList.add('defendpose')});
