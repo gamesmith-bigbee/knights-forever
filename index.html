@@ -88,7 +88,7 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
   <div class="card" id="tutorialCard"><div class="muted">Hold DEFEND to raise your shield. Swipe anywhere in the arena or press ATTACK to strike.</div></div>
   <div class="arena" id="arena">
     <div class="hp player"><i id="php"></i><span>You</span></div>
-    <div class="hp enemy"><i id="ehp"></i><span>Opponent</span></div>
+    <div class="hp enemy"><i id="ehp"></i><span id="enemyName">Opponent</span></div>
     <div class="telegraph" id="telegraph">The opponent watches you...</div>
     <div class="ground"></div>
     <img id="player" class="fighter player" src="assets/knight/idle-front.png" alt="">
@@ -103,12 +103,12 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 
 <section id="armoury" class="page">
   <button class="back" onclick="go('home')">← Castle</button>
-  <div class="card"><h2>🏰 Armoury</h2>Gold: 🪙 <b id="armGold">150</b></div>
+  <div class="card"><h2>🏰 Armoury</h2>Gold: 🪙 <b id="armGold">150</b><div class="muted" id="equipped"></div></div>
   <div class="loot">
     <div class="item"><div class="emoji">🪵</div><h3>Wooden Sword</h3><p>Basic training weapon.</p><button onclick="equip('wood')">Equip</button></div>
     <div class="item"><div class="emoji">⚔️</div><h3>Iron Sword</h3><p>+damage, slightly slower.</p><button onclick="buy(100,'sword')">100 Gold</button></div>
-    <div class="item"><div class="emoji">🛡️</div><h3>Steel Shield</h3><p>Better defence.</p><button onclick="buy(120,'shield')">120 Gold</button></div>
-    <div class="item"><div class="emoji">🧥</div><h3>Leather Armour</h3><p>+defence, -speed.</p><button onclick="buy(150,'armour')">150 Gold</button></div>
+    <div class="item"><div class="emoji">🛡️</div><h3>Steel Shield</h3><p>Chance to riposte after a successful block.</p><button onclick="buy(120,'shield')">120 Gold</button></div>
+    <div class="item"><div class="emoji">🧥</div><h3>Leather Armour</h3><p>Reduces all damage taken by 25%.</p><button onclick="buy(150,'armour')">150 Gold</button></div>
   </div>
 </section>
 
@@ -130,11 +130,19 @@ const S={
 };
 let hp=100, ehp=100, defending=false, locked=false, timer=null, startX=0,startY=0;
 
+const ENEMY_TYPES=[
+ {name:'Bandit',hue:0,idle:'assets/knight/idle-front.png',attack:'assets/knight/attack.png',dmgMin:10,dmgMax:16,delayMin:1100,delayMax:2600,reactMs:750,minLevel:1},
+ {name:'Orc Raider',hue:0,idle:'assets/orc/idle.png',attack:'assets/orc/attack.png',dmgMin:14,dmgMax:20,delayMin:900,delayMax:2100,reactMs:600,minLevel:1},
+ {name:'Knight Captain',hue:280,idle:'assets/knight/idle-front.png',attack:'assets/knight/attack.png',dmgMin:17,dmgMax:24,delayMin:700,delayMax:1700,reactMs:480,minLevel:4}
+];
+let currentEnemy=ENEMY_TYPES[0];
+
 function save(){
  localStorage.setItem('kk_gold',S.gold);localStorage.setItem('kk_xp',S.xp);localStorage.setItem('kk_level',S.level);
  localStorage.setItem('kk_sword',S.sword);localStorage.setItem('kk_shield',S.shield);localStorage.setItem('kk_armour',S.armour);localStorage.setItem('kk_chest',S.chest);
  document.querySelector('#gold').textContent=S.gold;document.querySelector('#xp').textContent=S.xp;document.querySelector('#level').textContent=S.level;document.querySelector('#armGold').textContent=S.gold;
  document.querySelector('#homeStatus').textContent=S.armour!=='none'?'Armoured and ready for battle.':'A brave beginner with a wooden sword.';
+ document.querySelector('#equipped').textContent='Equipped: '+(S.sword==='iron'?'Iron Sword':'Wooden Sword')+' · '+(S.shield==='steel'?'Steel Shield':'Wooden Shield')+' · '+(S.armour==='leather'?'Leather Armour':'No Armour');
 }
 function xp(n){S.xp+=n;while(S.xp>=100){S.xp-=100;S.level++;S.gold+=50}save()}
 function go(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='combat')reset()}
@@ -143,21 +151,36 @@ function reset(){
  const tut=document.querySelector('#tutorialCard');
  if(localStorage.getItem('kk_tutorial')){tut.style.display='none'}else{tut.style.display='';localStorage.setItem('kk_tutorial','1')}
  document.querySelector('#php').style.width='100%';document.querySelector('#ehp').style.width='100%';
- document.querySelector('#telegraph').textContent='The opponent watches you...';document.querySelector('#log').textContent='Watch the opponent. When you see the warning, defend!';
+ const pool=ENEMY_TYPES.filter(t=>t.minLevel<=S.level);
+ currentEnemy=pool[Math.floor(Math.random()*pool.length)];
+ document.querySelector('#enemyName').textContent=currentEnemy.name;
+ document.querySelector('#telegraph').textContent='The '+currentEnemy.name+' watches you...';document.querySelector('#log').textContent='Watch the opponent. When you see the warning, defend!';
  const p=document.querySelector('#player'),e=document.querySelector('#enemy');
- p.src='assets/knight/idle-front.png';e.src='assets/knight/idle-front.png';p.className='fighter player';e.className='fighter enemy';
+ p.src='assets/knight/idle-front.png';p.className='fighter player';
+ e.src=currentEnemy.idle;e.className='fighter enemy';e.style.filter=currentEnemy.hue?'hue-rotate('+currentEnemy.hue+'deg)':'';
  schedule();
 }
-function schedule(){if(locked)return;timer=setTimeout(enemyAttack,1100+Math.random()*1500)}
+function schedule(){if(locked)return;timer=setTimeout(enemyAttack,currentEnemy.delayMin+Math.random()*(currentEnemy.delayMax-currentEnemy.delayMin))}
 function enemyAttack(){
  if(locked)return;const t=document.querySelector('#telegraph'),e=document.querySelector('#enemy');
- t.textContent='⚠️ INCOMING ATTACK!';e.src='assets/knight/attack.png';e.classList.add('attackpose');
+ t.textContent='⚠️ INCOMING ATTACK!';e.src=currentEnemy.attack;e.classList.add('attackpose');
  setTimeout(()=>{
   if(locked)return;
-  if(defending){t.textContent='🛡️ BLOCKED!';document.querySelector('#log').textContent='Excellent! Your shield stopped the blow.'}
-  else{let d=12+Math.floor(Math.random()*8);hp=Math.max(0,hp-d);document.querySelector('#php').style.width=hp+'%';t.textContent='💥 HIT!';document.querySelector('#log').textContent='You took '+d+' damage. Hold DEFEND when the warning appears.';flash(document.querySelector('#player'));if(hp<=0){finish(false);return}}
-  e.src='assets/knight/idle-front.png';e.className='fighter enemy';schedule();
- },650)
+  if(defending){
+   t.textContent='🛡️ BLOCKED!';document.querySelector('#log').textContent='Excellent! Your shield stopped the blow.';
+   if(S.shield==='steel'&&Math.random()<0.4){
+    let rd=8+Math.floor(Math.random()*6);ehp=Math.max(0,ehp-rd);document.querySelector('#ehp').style.width=ehp+'%';
+    t.textContent='⚡ RIPOSTE!';document.querySelector('#log').textContent='Your steel shield staggers them for '+rd+' bonus damage!';flash(e);
+    if(ehp<=0){finish(true);return}
+   }
+  }
+  else{
+   let d=currentEnemy.dmgMin+Math.floor(Math.random()*(currentEnemy.dmgMax-currentEnemy.dmgMin+1));
+   if(S.armour==='leather')d=Math.round(d*0.75);
+   hp=Math.max(0,hp-d);document.querySelector('#php').style.width=hp+'%';t.textContent='💥 HIT!';document.querySelector('#log').textContent='You took '+d+' damage. Hold DEFEND when the warning appears.';flash(document.querySelector('#player'));if(hp<=0){finish(false);return}
+  }
+  e.src=currentEnemy.idle;e.className='fighter enemy';schedule();
+ },currentEnemy.reactMs)
 }
 function attack(){
  if(locked)return;const p=document.querySelector('#player'),e=document.querySelector('#enemy');
@@ -170,7 +193,7 @@ function attack(){
 }
 function finish(win){
  locked=true;clearTimeout(timer);
- if(win){let g=35+Math.floor(Math.random()*31);S.gold+=g;xp(30);document.querySelector('#telegraph').textContent='🏆 VICTORY!';document.querySelector('#log').textContent='Victory! +'+g+' gold and +30 XP.'}
+ if(win){let g=35+Math.floor(Math.random()*31);S.gold+=g;xp(30);document.querySelector('#telegraph').textContent='🏆 VICTORY!';document.querySelector('#log').textContent='Defeated the '+currentEnemy.name+'! +'+g+' gold and +30 XP.'}
  else{document.querySelector('#telegraph').textContent='💀 DEFEAT';document.querySelector('#log').textContent='You were defeated. Try defending more often.'}
  save();
 }
