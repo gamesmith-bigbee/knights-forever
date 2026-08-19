@@ -30,13 +30,15 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 .home-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
 .home-actions button{min-height:72px}.home-actions small{display:block;font-weight:400;margin-top:4px}
 .back{margin-bottom:12px}
-.arena{height:calc(100dvh - 220px);min-height:440px;background:linear-gradient(#acd7e6 0 55%,#6e9555 55% 72%,#c5a574 72%);touch-action:none;user-select:none}
+.arena{flex:1;min-height:220px;background:linear-gradient(#acd7e6 0 55%,#6e9555 55% 72%,#c5a574 72%);touch-action:none;user-select:none}
 .arena .ground{position:absolute;left:5%;right:5%;bottom:15%;height:3px;background:rgba(42,37,34,.35)}
 .fighter{position:absolute;bottom:14%;height:69%;width:auto;max-width:44%;object-fit:contain;filter:drop-shadow(0 6px 0 rgba(42,37,34,.25));pointer-events:none;transition:transform .16s,left .16s,right .16s}
-.player{left:5%}.enemy{right:5%;transform:scaleX(-1)}
-.enemy.attackpose{transform:scaleX(-1) translateX(-18px) rotate(-3deg)}
-.player.attackpose{transform:translateX(24px) rotate(-3deg)}
-.player.defendpose{transform:translateX(-5px) scale(.97)}
+.fighter.player{left:5%}.fighter.enemy{right:5%;transform:scaleX(-1)}
+.fighter.enemy.attackpose{transform:scaleX(-1) translateX(-18px) rotate(-3deg)}
+.fighter.player.attackpose{transform:translateX(24px) rotate(-3deg)}
+.fighter.player.defendpose{transform:translateX(-5px) scale(.97)}
+#combat.active{display:flex;flex-direction:column;overflow:hidden}
+#combat.active .back,#combat.active .card,#combat.active .controls,#combat.active .combat-log{flex:none}
 .hp{position:absolute;top:12px;height:24px;width:40%;border:3px solid var(--ink);border-radius:20px;background:#fff6df;overflow:hidden;z-index:3}
 .hp.player{left:3%}.hp.enemy{right:3%}.hp i{display:block;height:100%;background:#c74a3f;width:100%;transition:width .2s}.hp span{position:absolute;inset:0;text-align:center;font:700 12px Arial;line-height:18px}
 .telegraph{position:absolute;left:50%;top:48px;transform:translateX(-50%);background:#fff6df;border:3px solid var(--ink);border-radius:15px;padding:7px 12px;font-weight:900;z-index:4;white-space:nowrap}
@@ -46,7 +48,7 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 .combat-log{margin-top:9px;padding:9px;background:#fff6df;border:3px solid var(--ink);border-radius:13px;font:700 14px Arial;min-height:38px}
 .loot{display:grid;grid-template-columns:1fr 1fr;gap:10px}.item{border:3px solid var(--ink);border-radius:14px;background:#fff6df;padding:12px}.item .emoji{font-size:40px;text-align:center}.item p{font:14px Arial;min-height:35px}.item button{width:100%;font-size:15px}
 .chest{text-align:center}.chest-icon{font-size:110px;line-height:1;margin:10px}
-@media (max-width:600px){.home-actions{grid-template-columns:1fr}.home-bg{height:47vh;min-height:330px}.castle{transform:scale(.8);transform-origin:left bottom}.arena{height:calc(100dvh - 250px);min-height:400px}.fighter{height:64%;max-width:47%;bottom:15%}.control{height:88px}.title{font-size:17px}}
+@media (max-width:600px){.home-actions{grid-template-columns:1fr}.home-bg{height:47vh;min-height:330px}.castle{transform:scale(.8);transform-origin:left bottom}.arena{min-height:200px}.fighter{height:64%;max-width:47%;bottom:15%}.control{height:88px}.title{font-size:17px}}
 </style>
 </head>
 <body>
@@ -164,8 +166,8 @@ function finish(win){
 function flash(el){el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),400)}
 
 const db=document.querySelector('#defend');
-db.addEventListener('pointerdown',e=>{e.preventDefault();defending=true;db.textContent='🛡️ DEFENDING'});
-['pointerup','pointercancel','pointerleave'].forEach(ev=>db.addEventListener(ev,e=>{defending=false;db.textContent='🛡️ HOLD TO DEFEND'}));
+db.addEventListener('pointerdown',e=>{e.preventDefault();defending=true;db.textContent='🛡️ DEFENDING';document.querySelector('#player').classList.add('defendpose')});
+['pointerup','pointercancel','pointerleave'].forEach(ev=>db.addEventListener(ev,e=>{defending=false;db.textContent='🛡️ HOLD TO DEFEND';document.querySelector('#player').classList.remove('defendpose')}));
 document.querySelector('#attack').addEventListener('pointerdown',e=>{e.preventDefault();attack()});
 const arena=document.querySelector('#arena');
 arena.addEventListener('pointerdown',e=>{startX=e.clientX;startY=e.clientY;arena.setPointerCapture?.(e.pointerId)});
