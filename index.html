@@ -272,7 +272,7 @@ function attemptParry(){
  if(ehp<=0){finish(true);return}
  timer=setTimeout(()=>{e.classList.remove('stunned');if(!locked){e.src=currentEnemy.idle;document.querySelector('#log').textContent='The '+currentEnemy.name+' recovers...';schedule()}},1100);
 }
-const ENEMY_BLOCK_CHANCE=0.2;
+const ENEMY_BLOCK_CHANCE=0.38;
 function attack(){
  if(locked||stamina<STAMINA_COST)return;
  stamina-=STAMINA_COST;updateStamina();
