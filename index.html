@@ -31,6 +31,9 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 .home-actions{display:flex;flex-direction:column;gap:10px}
 .home-actions small{display:block;font-weight:400;margin-top:4px}
 .primary-action{min-height:78px;font-size:20px;background:var(--gold)}
+.sword-fight-btn{background:none;border:none;box-shadow:none;padding:0;min-height:0;width:100%;line-height:0}
+.sword-fight-btn img{display:block;width:100%;height:auto;filter:drop-shadow(0 4px 0 rgba(42,37,34,.35))}
+.sword-fight-btn:active{box-shadow:none}
 .secondary-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
 .secondary-actions button{min-height:62px;font-size:15px}
 .back{margin-bottom:12px}
@@ -88,7 +91,7 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
   </div>
   <p class="hero-caption" id="homeStatus">A brave beginner with a wooden sword.</p>
   <div class="home-actions">
-    <button class="primary-action" onclick="go('combat')">⚔️ Sword Fight<small>Earn XP & gold</small></button>
+    <button class="primary-action sword-fight-btn" onclick="go('combat')"><img src="assets/ui/sword-fight-button.webp" alt="Training Sword Fight — Earn XP & gold"></button>
     <div class="secondary-actions">
       <button onclick="go('armoury')">🏰 Armoury</button>
       <button onclick="daily()">🎁 Daily Chest</button>
