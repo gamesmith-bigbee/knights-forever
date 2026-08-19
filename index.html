@@ -51,8 +51,13 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 .flash{animation:flash .18s 2}@keyframes flash{50%{filter:brightness(2) drop-shadow(0 6px 0 rgba(42,37,34,.25))}}
 .telegraph.warn{animation:pulseWarn .5s infinite}@keyframes pulseWarn{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.08)}}
 .arena.shake{animation:shake .4s}@keyframes shake{10%,90%{transform:translateX(-3px)}20%,80%{transform:translateX(5px)}30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
+.arena.victorypunch{animation:victoryPunch .5s ease-out}@keyframes victoryPunch{0%{transform:scale(1)}35%{transform:scale(1.035)}100%{transform:scale(1)}}
 .fighter.pop{animation:popIn .5s ease-out}@keyframes popIn{0%{transform:scale(.6);opacity:.4}60%{transform:scale(1.12)}100%{transform:scale(1)}}
 .fighter.enemy.pop{animation:popInEnemy .5s ease-out}@keyframes popInEnemy{0%{transform:scaleX(-1) scale(.6);opacity:.4}60%{transform:scaleX(-1) scale(1.12)}100%{transform:scaleX(-1) scale(1)}}
+.fighter.stunned{animation:stunWobble .3s 3}@keyframes stunWobble{0%,100%{filter:brightness(1.5) saturate(.3) drop-shadow(0 6px 0 rgba(42,37,34,.25))}50%{filter:brightness(1.1) saturate(.7) drop-shadow(0 6px 0 rgba(42,37,34,.25))}}
+.dmgpop{position:absolute;transform:translate(-50%,0);font:900 22px Arial;color:#b23b30;text-shadow:0 2px 0 rgba(255,255,255,.5);pointer-events:none;animation:dmgFloat .85s ease-out forwards;z-index:6}
+@keyframes dmgFloat{0%{opacity:0;transform:translate(-50%,0) scale(.6)}18%{opacity:1;transform:translate(-50%,-8px) scale(1.15)}100%{opacity:0;transform:translate(-50%,-58px) scale(1)}}
+.hp.player.low{animation:lowHpGlow 1s infinite}@keyframes lowHpGlow{0%,100%{box-shadow:0 0 0 rgba(201,60,60,0)}50%{box-shadow:0 0 12px 4px rgba(201,60,60,.75)}}
 .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
 .control{height:82px;touch-action:none}
 .defend{--shield:100%;background:linear-gradient(to right,#b7d3df 0%,#b7d3df var(--shield),#5f7480 var(--shield),#5f7480 100%);transition:background .15s}
@@ -91,7 +96,7 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
     <button class="back" onclick="go('home')">← Castle</button>
     <h2>⚔️ Sword Fight</h2>
   </div>
-  <div class="card" id="tutorialCard"><div class="muted">Hold DEFEND to raise your shield. Swipe anywhere in the arena or press ATTACK to strike — but attacking costs stamina and blocking wears down your shield, so pace both and don't rely on either alone.</div></div>
+  <div class="card" id="tutorialCard"><div class="muted">Hold your knight to raise your shield. Swipe toward the enemy to strike. Swipe straight up right as they swing to parry — stunning them for a free hit! Attacking costs stamina and blocking wears your shield down, so don't rely on either alone.</div></div>
   <div class="arena" id="arena">
     <div class="hp player"><i id="php"></i><span>You</span></div>
     <div class="hp enemy"><i id="ehp"></i><span id="enemyName">Opponent</span></div>
@@ -113,7 +118,7 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
   <div class="loot">
     <div class="item"><div class="emoji">🪵</div><h3>Wooden Sword</h3><p>Basic training weapon.</p><button onclick="equip('wood')">Equip</button></div>
     <div class="item"><div class="emoji">⚔️</div><h3>Iron Sword</h3><p>+damage, slightly slower.</p><button onclick="buy(100,'sword')">100 Gold</button></div>
-    <div class="item"><div class="emoji">🛡️</div><h3>Steel Shield</h3><p>Wears down slower, recovers faster, and can riposte after a block.</p><button onclick="buy(120,'shield')">120 Gold</button></div>
+    <div class="item"><div class="emoji">🛡️</div><h3>Steel Shield</h3><p>Bigger durability pool that wears down slower and recovers faster — still wears down eventually, but lets you block for much longer. Can also riposte after a block.</p><button onclick="buy(120,'shield')">120 Gold</button></div>
     <div class="item"><div class="emoji">🧥</div><h3>Leather Armour</h3><p>Reduces all damage taken by 25%.</p><button onclick="buy(150,'armour')">150 Gold</button></div>
   </div>
 </section>
@@ -137,9 +142,10 @@ const S={
 let hp=100, ehp=100, defending=false, locked=false, timer=null, startX=0,startY=0;
 const STAMINA_MAX=100, STAMINA_COST=45, STAMINA_REGEN=25;
 let stamina=STAMINA_MAX, staminaTimer=null;
-const SHIELD_MAX=100;
-let shield=SHIELD_MAX, shieldTimer=null;
-function shieldParams(){return S.shield==='steel'?{cost:20,regen:13}:{cost:35,regen:6}}
+let shield=100, shieldTimer=null;
+function shieldParams(){return S.shield==='steel'?{max:150,cost:30,regen:9}:{max:100,cost:32,regen:5}}
+const PARRY_WINDOW_MS=260;
+let telegraphActive=false, telegraphStart=0, parriedThisAttack=false;
 
 const ENEMY_TYPES=[
  {name:'Bandit',hue:0,folder:'bandit',idle:'assets/bandit/idle.png',attack:'assets/bandit/attack.png',dmgMin:10,dmgMax:16,delayMin:1100,delayMax:2600,reactMs:750,minLevel:1},
@@ -165,8 +171,9 @@ function updateStamina(){
  btn.textContent=canAttack?'⚔️ ATTACK':'⚔️ TIRED';
 }
 function updateShield(){
- const btn=document.querySelector('#defend'),{cost}=shieldParams();
- btn.style.setProperty('--shield',Math.round(shield)+'%');
+ const btn=document.querySelector('#defend'),{cost,max}=shieldParams();
+ const pct=Math.max(0,Math.min(100,Math.round(shield/max*100)));
+ btn.style.setProperty('--shield',pct+'%');
  const canDefend=shield>=cost&&!locked;
  btn.disabled=!canDefend;
  if(!defending)btn.textContent=canDefend?'🛡️ HOLD TO DEFEND':'🛡️ SHIELD EXHAUSTED';
@@ -176,12 +183,13 @@ function reset(){
  stamina=STAMINA_MAX;clearInterval(staminaTimer);
  staminaTimer=setInterval(()=>{if(!locked){stamina=Math.min(STAMINA_MAX,stamina+STAMINA_REGEN*0.1);updateStamina()}},100);
  updateStamina();
- shield=SHIELD_MAX;clearInterval(shieldTimer);
- shieldTimer=setInterval(()=>{if(!locked){shield=Math.min(SHIELD_MAX,shield+shieldParams().regen*0.1);updateShield()}},100);
+ shield=shieldParams().max;clearInterval(shieldTimer);
+ shieldTimer=setInterval(()=>{if(!locked){const sp=shieldParams();shield=Math.min(sp.max,shield+sp.regen*0.1);updateShield()}},100);
  updateShield();
  const tut=document.querySelector('#tutorialCard');
  if(localStorage.getItem('kk_tutorial')){tut.style.display='none'}else{tut.style.display='';localStorage.setItem('kk_tutorial','1')}
- document.querySelector('#php').style.width='100%';document.querySelector('#ehp').style.width='100%';
+ updatePlayerHp();document.querySelector('#ehp').style.width='100%';
+ telegraphActive=false;parriedThisAttack=false;
  const pool=ENEMY_TYPES.filter(t=>t.minLevel<=S.level);
  currentEnemy=pool[Math.floor(Math.random()*pool.length)];
  document.querySelector('#enemyName').textContent=currentEnemy.name;
@@ -195,8 +203,10 @@ function schedule(){if(locked)return;timer=setTimeout(enemyAttack,currentEnemy.d
 function enemyAttack(){
  if(locked)return;const t=document.querySelector('#telegraph'),e=document.querySelector('#enemy');
  t.textContent='⚠️ INCOMING ATTACK!';t.classList.add('warn');e.src=currentEnemy.attack;e.classList.add('attackpose');
+ telegraphActive=true;telegraphStart=Date.now();parriedThisAttack=false;
  setTimeout(()=>{
-  if(locked)return;
+  telegraphActive=false;
+  if(locked||parriedThisAttack)return;
   t.classList.remove('warn');
   const sp=shieldParams();
   if(defending&&shield>=sp.cost){
@@ -204,22 +214,37 @@ function enemyAttack(){
    t.textContent='🛡️ BLOCKED!';document.querySelector('#log').textContent='Excellent! Your shield stopped the blow.';
    if(S.shield==='steel'&&Math.random()<0.4){
     let rd=8+Math.floor(Math.random()*6);ehp=Math.max(0,ehp-rd);document.querySelector('#ehp').style.width=ehp+'%';
-    t.textContent='⚡ RIPOSTE!';document.querySelector('#log').textContent='Your steel shield staggers them for '+rd+' bonus damage!';flash(e);
+    t.textContent='⚡ RIPOSTE!';document.querySelector('#log').textContent='Your steel shield staggers them for '+rd+' bonus damage!';flash(e);popDamage(e,rd,'#3f6b3a');
     if(ehp<=0){finish(true);return}
    }
   }
   else{
    let d=currentEnemy.dmgMin+Math.floor(Math.random()*(currentEnemy.dmgMax-currentEnemy.dmgMin+1));
    if(S.armour==='leather')d=Math.round(d*0.75);
-   hp=Math.max(0,hp-d);document.querySelector('#php').style.width=hp+'%';
+   hp=Math.max(0,hp-d);updatePlayerHp();
    if(defending){t.textContent='💥 SHIELD BROKE!';document.querySelector('#log').textContent='Your shield was too worn to hold — you took '+d+' damage!'}
    else{t.textContent='💥 HIT!';document.querySelector('#log').textContent='You took '+d+' damage. Hold DEFEND when the warning appears.'}
    const p=document.querySelector('#player');p.src='assets/knight/injured.png';p.classList.remove('defendpose');
    setTimeout(()=>{if(!locked)p.src='assets/knight/idle-front.png'},400);
-   flash(p);shakeArena();if(hp<=0){finish(false);return}
+   flash(p);shakeArena();popDamage(p,d,'#b23b30');if(hp<=0){finish(false);return}
   }
   e.src=currentEnemy.idle;e.className='fighter enemy';schedule();
  },currentEnemy.reactMs)
+}
+function attemptParry(){
+ if(locked||!telegraphActive||parriedThisAttack)return;
+ const elapsed=Date.now()-telegraphStart;
+ const windowStart=currentEnemy.reactMs-Math.min(PARRY_WINDOW_MS,currentEnemy.reactMs*0.6);
+ if(elapsed<windowStart){document.querySelector('#log').textContent='Too early — wait for the strike!';return}
+ parriedThisAttack=true;telegraphActive=false;
+ const t=document.querySelector('#telegraph'),e=document.querySelector('#enemy');
+ t.classList.remove('warn');t.textContent='⚡ PARRIED!';
+ document.querySelector('#log').textContent='Perfect timing! The '+currentEnemy.name+' is stunned!';
+ let rd=15+Math.floor(Math.random()*8);
+ ehp=Math.max(0,ehp-rd);document.querySelector('#ehp').style.width=ehp+'%';
+ e.src=currentEnemy.idle;e.className='fighter enemy stunned';flash(e);popDamage(e,rd,'#3f6b3a');
+ if(ehp<=0){finish(true);return}
+ timer=setTimeout(()=>{e.classList.remove('stunned');if(!locked){document.querySelector('#log').textContent='The '+currentEnemy.name+' recovers...';schedule()}},1100);
 }
 function attack(){
  if(locked||stamina<STAMINA_COST)return;
@@ -230,7 +255,22 @@ function attack(){
  let d=S.sword==='iron'?20+Math.floor(Math.random()*8):12+Math.floor(Math.random()*6);
  ehp=Math.max(0,ehp-d);document.querySelector('#ehp').style.width=ehp+'%';
  document.querySelector('#telegraph').textContent='⚔️ '+d+' DAMAGE!';document.querySelector('#log').textContent='Your sword connects. Stay ready to defend.';
- flash(e);if(ehp<=0)finish(true)
+ flash(e);popDamage(e,d,'#3f6b3a');if(ehp<=0)finish(true)
+}
+function popDamage(el,amount,color){
+ const arenaEl=document.querySelector('#arena');
+ const rect=el.getBoundingClientRect(),arenaRect=arenaEl.getBoundingClientRect();
+ const span=document.createElement('div');
+ span.className='dmgpop';span.textContent='-'+amount;
+ span.style.left=(rect.left-arenaRect.left+rect.width/2)+'px';
+ span.style.top=(rect.top-arenaRect.top+rect.height*0.22)+'px';
+ if(color)span.style.color=color;
+ arenaEl.appendChild(span);
+ setTimeout(()=>span.remove(),850);
+}
+function updatePlayerHp(){
+ document.querySelector('#php').style.width=hp+'%';
+ document.querySelector('.hp.player').classList.toggle('low',hp>0&&hp<=30);
 }
 function finish(win){
  locked=true;clearTimeout(timer);clearInterval(staminaTimer);clearInterval(shieldTimer);
@@ -241,20 +281,50 @@ function finish(win){
  p.src='assets/knight/'+(win?'victory':'defeated')+'.png';
  e.src='assets/'+currentEnemy.folder+'/'+(win?'defeated':'victory')+'.png';
  (win?p:e).classList.add('pop');
- if(win){let g=35+Math.floor(Math.random()*31);S.gold+=g;xp(30);document.querySelector('#telegraph').textContent='🏆 VICTORY!';document.querySelector('#log').textContent='Defeated the '+currentEnemy.name+'! +'+g+' gold and +30 XP.'}
+ if(win){let g=35+Math.floor(Math.random()*31);S.gold+=g;xp(30);document.querySelector('#telegraph').textContent='🏆 VICTORY!';document.querySelector('#log').textContent='Defeated the '+currentEnemy.name+'! +'+g+' gold and +30 XP.';punchArena()}
  else{document.querySelector('#telegraph').textContent='💀 DEFEAT';document.querySelector('#log').textContent='You were defeated. Try defending more often.'}
  save();
 }
 function flash(el){el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),400)}
 function shakeArena(){const a=document.querySelector('#arena');a.classList.remove('shake');void a.offsetWidth;a.classList.add('shake')}
+function punchArena(){const a=document.querySelector('#arena');a.classList.remove('victorypunch');void a.offsetWidth;a.classList.add('victorypunch')}
 
+function startDefending(){
+ if(locked||db.disabled||shield<shieldParams().cost)return;
+ defending=true;db.textContent='🛡️ DEFENDING';
+ const p=document.querySelector('#player');p.src='assets/knight/defend.png';p.classList.add('defendpose');
+}
+function stopDefending(){
+ if(!defending)return;
+ defending=false;
+ const p=document.querySelector('#player');p.src='assets/knight/idle-front.png';p.classList.remove('defendpose');
+ updateShield();
+}
 const db=document.querySelector('#defend');
-db.addEventListener('pointerdown',e=>{e.preventDefault();if(db.disabled||shield<shieldParams().cost)return;defending=true;db.textContent='🛡️ DEFENDING';const p=document.querySelector('#player');p.src='assets/knight/defend.png';p.classList.add('defendpose')});
-['pointerup','pointercancel','pointerleave'].forEach(ev=>db.addEventListener(ev,e=>{defending=false;const p=document.querySelector('#player');p.src='assets/knight/idle-front.png';p.classList.remove('defendpose');updateShield()}));
+db.addEventListener('pointerdown',e=>{e.preventDefault();startDefending()});
+['pointerup','pointercancel','pointerleave'].forEach(ev=>db.addEventListener(ev,()=>stopDefending()));
 document.querySelector('#attack').addEventListener('pointerdown',e=>{e.preventDefault();attack()});
 const arena=document.querySelector('#arena');
-arena.addEventListener('pointerdown',e=>{startX=e.clientX;startY=e.clientY;arena.setPointerCapture?.(e.pointerId)});
-arena.addEventListener('pointerup',e=>{if(Math.hypot(e.clientX-startX,e.clientY-startY)>30)attack()});
+let arenaHolding=false;
+arena.addEventListener('pointerdown',e=>{
+ startX=e.clientX;startY=e.clientY;
+ try{arena.setPointerCapture?.(e.pointerId)}catch(err){}
+ const rect=arena.getBoundingClientRect();
+ const relX=(e.clientX-rect.left)/rect.width;
+ if(relX<=0.42&&!db.disabled){startDefending();arenaHolding=true}else{arenaHolding=false}
+});
+arena.addEventListener('pointermove',e=>{
+ if(!arenaHolding)return;
+ if(Math.hypot(e.clientX-startX,e.clientY-startY)>26){stopDefending();arenaHolding=false}
+});
+arena.addEventListener('pointerup',e=>{
+ if(arenaHolding){stopDefending();arenaHolding=false;return}
+ const dx=e.clientX-startX,dy=e.clientY-startY;
+ if(Math.hypot(dx,dy)<30)return;
+ if(Math.abs(dy)>Math.abs(dx)*1.2&&dy<-30)attemptParry();
+ else if(dx>30&&dx>Math.abs(dy))attack();
+});
+arena.addEventListener('pointercancel',()=>{if(arenaHolding){stopDefending();arenaHolding=false}});
 
 function buy(cost,type){
  if(S.gold<cost){alert('Not enough gold.');return}
