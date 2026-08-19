@@ -7,7 +7,7 @@
 <title>Kingdom Knight — 0.3</title>
 <style>
 :root{--ink:#2a2522;--paper:#fff6df;--red:#b94339;--gold:#e2a62b;--green:#668b52;--sky:#b8dcea}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Georgia,serif;color:var(--ink);background:var(--sky)}
 body{touch-action:manipulation}
 button{font:700 18px Georgia,serif;color:var(--ink);background:var(--paper);border:3px solid var(--ink);border-radius:16px;box-shadow:0 4px 0 var(--ink);padding:13px 16px}
@@ -27,9 +27,15 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 .tower{position:absolute;bottom:-4px;width:50px;height:145px;background:#aaa18e;border:4px solid var(--ink)}.tower.a{left:-8px}.tower.b{right:-8px}
 .tower:before{content:"";position:absolute;left:-5px;top:-28px;border-left:26px solid transparent;border-right:26px solid transparent;border-bottom:28px solid #78433b}
 .hero-home{position:absolute;left:50%;bottom:8px;transform:translateX(-50%);height:82%;width:auto;max-width:78%;object-fit:contain;filter:drop-shadow(0 7px 0 rgba(42,37,34,.25))}
-.home-actions{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
-.home-actions button{min-height:72px}.home-actions small{display:block;font-weight:400;margin-top:4px}
+.hero-caption{margin:10px 4px 14px;text-align:center;font:700 14px Arial;opacity:.7}
+.home-actions{display:flex;flex-direction:column;gap:10px}
+.home-actions small{display:block;font-weight:400;margin-top:4px}
+.primary-action{min-height:78px;font-size:20px;background:var(--gold)}
+.secondary-actions{display:grid;grid-template-columns:1fr 1fr;gap:10px}
+.secondary-actions button{min-height:62px;font-size:15px}
 .back{margin-bottom:12px}
+.combat-head{display:flex;align-items:center;gap:12px;margin-bottom:10px}
+.combat-head .back{margin:0}.combat-head h2{margin:0}
 .arena{flex:1;min-height:220px;background:linear-gradient(#acd7e6 0 55%,#6e9555 55% 72%,#c5a574 72%);touch-action:none;user-select:none}
 .arena .ground{position:absolute;left:5%;right:5%;bottom:15%;height:3px;background:rgba(42,37,34,.35)}
 .fighter{position:absolute;bottom:14%;height:69%;width:auto;max-width:44%;object-fit:contain;filter:drop-shadow(0 6px 0 rgba(42,37,34,.25));pointer-events:none;transition:transform .16s,left .16s,right .16s}
@@ -48,7 +54,7 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 .combat-log{margin-top:9px;padding:9px;background:#fff6df;border:3px solid var(--ink);border-radius:13px;font:700 14px Arial;min-height:38px}
 .loot{display:grid;grid-template-columns:1fr 1fr;gap:10px}.item{border:3px solid var(--ink);border-radius:14px;background:#fff6df;padding:12px}.item .emoji{font-size:40px;text-align:center}.item p{font:14px Arial;min-height:35px}.item button{width:100%;font-size:15px}
 .chest{text-align:center}.chest-icon{font-size:110px;line-height:1;margin:10px}
-@media (max-width:600px){.home-actions{grid-template-columns:1fr}.home-bg{height:47vh;min-height:330px}.castle{transform:scale(.8);transform-origin:left bottom}.arena{min-height:200px}.fighter{height:64%;max-width:47%;bottom:15%}.control{height:88px}.title{font-size:17px}}
+@media (max-width:600px){.home-bg{height:47vh;min-height:330px}.castle{transform:scale(.8);transform-origin:left bottom}.arena{min-height:200px}.fighter{height:64%;max-width:47%;bottom:15%}.control{height:88px}.title{font-size:17px}}
 </style>
 </head>
 <body>
@@ -64,19 +70,22 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
     <div class="castle"><div class="tower a"></div><div class="tower b"></div></div>
     <img class="hero-home" src="assets/knight/idle-front.png" alt="Your knight">
   </div>
-  <div class="card">
-    <h2>Your Knight</h2><div class="muted" id="homeStatus">A brave beginner with a wooden sword.</div>
-  </div>
+  <p class="hero-caption" id="homeStatus">A brave beginner with a wooden sword.</p>
   <div class="home-actions">
-    <button onclick="go('combat')">⚔️ Sword Fight<small>Earn XP & gold</small></button>
-    <button onclick="go('armoury')">🏰 Armoury<small>Upgrade equipment</small></button>
-    <button onclick="daily()">🎁 Daily Chest<small>Claim today's reward</small></button>
+    <button class="primary-action" onclick="go('combat')">⚔️ Sword Fight<small>Earn XP & gold</small></button>
+    <div class="secondary-actions">
+      <button onclick="go('armoury')">🏰 Armoury</button>
+      <button onclick="daily()">🎁 Daily Chest</button>
+    </div>
   </div>
 </section>
 
 <section id="combat" class="page">
-  <button class="back" onclick="go('home')">← Castle</button>
-  <div class="card"><h2>⚔️ Sword Fight</h2><div class="muted">Hold DEFEND to raise your shield. Swipe anywhere in the arena or press ATTACK to strike.</div></div>
+  <div class="combat-head">
+    <button class="back" onclick="go('home')">← Castle</button>
+    <h2>⚔️ Sword Fight</h2>
+  </div>
+  <div class="card" id="tutorialCard"><div class="muted">Hold DEFEND to raise your shield. Swipe anywhere in the arena or press ATTACK to strike.</div></div>
   <div class="arena" id="arena">
     <div class="hp player"><i id="php"></i><span>You</span></div>
     <div class="hp enemy"><i id="ehp"></i><span>Opponent</span></div>
@@ -131,6 +140,8 @@ function xp(n){S.xp+=n;while(S.xp>=100){S.xp-=100;S.level++;S.gold+=50}save()}
 function go(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='combat')reset()}
 function reset(){
  hp=100;ehp=100;locked=false;defending=false;clearTimeout(timer);
+ const tut=document.querySelector('#tutorialCard');
+ if(localStorage.getItem('kk_tutorial')){tut.style.display='none'}else{tut.style.display='';localStorage.setItem('kk_tutorial','1')}
  document.querySelector('#php').style.width='100%';document.querySelector('#ehp').style.width='100%';
  document.querySelector('#telegraph').textContent='The opponent watches you...';document.querySelector('#log').textContent='Watch the opponent. When you see the warning, defend!';
  const p=document.querySelector('#player'),e=document.querySelector('#enemy');
