@@ -7,7 +7,7 @@
 <title>Kingdom Knight — 0.3</title>
 <style>
 :root{--ink:#2a2522;--paper:#fff6df;--red:#b94339;--gold:#e2a62b;--green:#668b52;--sky:#b8dcea}
-*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent;-webkit-user-select:none;user-select:none;-webkit-touch-callout:none;touch-action:manipulation}
 html,body{margin:0;width:100%;height:100%;overflow:hidden;font-family:Georgia,serif;color:var(--ink);background:#1b1f22}
 body{touch-action:manipulation}
 button{font:700 18px Georgia,serif;color:var(--ink);background:var(--paper);border:3px solid var(--ink);border-radius:16px;box-shadow:0 4px 0 var(--ink);padding:13px 16px}
@@ -50,7 +50,8 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 .telegraph{position:absolute;left:50%;top:48px;transform:translateX(-50%);background:#fff6df;border:3px solid var(--ink);border-radius:15px;padding:7px 12px;font-weight:900;z-index:4;white-space:nowrap}
 .flash{animation:flash .18s 2}@keyframes flash{50%{filter:brightness(2) drop-shadow(0 6px 0 rgba(42,37,34,.25))}}
 .controls{display:grid;grid-template-columns:1fr 1fr;gap:10px;margin-top:10px}
-.control{height:82px;touch-action:none}.defend{background:#b7d3df}
+.control{height:82px;touch-action:none}
+.defend{--shield:100%;background:linear-gradient(to right,#b7d3df 0%,#b7d3df var(--shield),#5f7480 var(--shield),#5f7480 100%);transition:background .15s}
 .attack{--stam:100%;background:linear-gradient(to right,#e6ad32 0%,#e6ad32 var(--stam),#8a6b1f var(--stam),#8a6b1f 100%);transition:background .15s}
 .combat-log{margin-top:9px;padding:9px;background:#fff6df;border:3px solid var(--ink);border-radius:13px;font:700 14px Arial;min-height:38px}
 .loot{display:grid;grid-template-columns:1fr 1fr;gap:10px}.item{border:3px solid var(--ink);border-radius:14px;background:#fff6df;padding:12px}.item .emoji{font-size:40px;text-align:center}.item p{font:14px Arial;min-height:35px}.item button{width:100%;font-size:15px}
@@ -86,7 +87,7 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
     <button class="back" onclick="go('home')">← Castle</button>
     <h2>⚔️ Sword Fight</h2>
   </div>
-  <div class="card" id="tutorialCard"><div class="muted">Hold DEFEND to raise your shield. Swipe anywhere in the arena or press ATTACK to strike — but attacking costs stamina, so pace yourself and defend while it recovers.</div></div>
+  <div class="card" id="tutorialCard"><div class="muted">Hold DEFEND to raise your shield. Swipe anywhere in the arena or press ATTACK to strike — but attacking costs stamina and blocking wears down your shield, so pace both and don't rely on either alone.</div></div>
   <div class="arena" id="arena">
     <div class="hp player"><i id="php"></i><span>You</span></div>
     <div class="hp enemy"><i id="ehp"></i><span id="enemyName">Opponent</span></div>
@@ -108,7 +109,7 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
   <div class="loot">
     <div class="item"><div class="emoji">🪵</div><h3>Wooden Sword</h3><p>Basic training weapon.</p><button onclick="equip('wood')">Equip</button></div>
     <div class="item"><div class="emoji">⚔️</div><h3>Iron Sword</h3><p>+damage, slightly slower.</p><button onclick="buy(100,'sword')">100 Gold</button></div>
-    <div class="item"><div class="emoji">🛡️</div><h3>Steel Shield</h3><p>Chance to riposte after a successful block.</p><button onclick="buy(120,'shield')">120 Gold</button></div>
+    <div class="item"><div class="emoji">🛡️</div><h3>Steel Shield</h3><p>Wears down slower, recovers faster, and can riposte after a block.</p><button onclick="buy(120,'shield')">120 Gold</button></div>
     <div class="item"><div class="emoji">🧥</div><h3>Leather Armour</h3><p>Reduces all damage taken by 25%.</p><button onclick="buy(150,'armour')">150 Gold</button></div>
   </div>
 </section>
@@ -132,6 +133,9 @@ const S={
 let hp=100, ehp=100, defending=false, locked=false, timer=null, startX=0,startY=0;
 const STAMINA_MAX=100, STAMINA_COST=45, STAMINA_REGEN=25;
 let stamina=STAMINA_MAX, staminaTimer=null;
+const SHIELD_MAX=100;
+let shield=SHIELD_MAX, shieldTimer=null;
+function shieldParams(){return S.shield==='steel'?{cost:20,regen:16}:{cost:28,regen:12}}
 
 const ENEMY_TYPES=[
  {name:'Bandit',hue:0,idle:'assets/bandit/idle.png',attack:'assets/bandit/attack.png',dmgMin:10,dmgMax:16,delayMin:1100,delayMax:2600,reactMs:750,minLevel:1},
@@ -156,11 +160,21 @@ function updateStamina(){
  btn.disabled=!canAttack;
  btn.textContent=canAttack?'⚔️ ATTACK':'⚔️ TIRED';
 }
+function updateShield(){
+ const btn=document.querySelector('#defend'),{cost}=shieldParams();
+ btn.style.setProperty('--shield',Math.round(shield)+'%');
+ const canDefend=shield>=cost&&!locked;
+ btn.disabled=!canDefend;
+ if(!defending)btn.textContent=canDefend?'🛡️ HOLD TO DEFEND':'🛡️ SHIELD EXHAUSTED';
+}
 function reset(){
  hp=100;ehp=100;locked=false;defending=false;clearTimeout(timer);
  stamina=STAMINA_MAX;clearInterval(staminaTimer);
  staminaTimer=setInterval(()=>{if(!locked){stamina=Math.min(STAMINA_MAX,stamina+STAMINA_REGEN*0.1);updateStamina()}},100);
  updateStamina();
+ shield=SHIELD_MAX;clearInterval(shieldTimer);
+ shieldTimer=setInterval(()=>{if(!locked){shield=Math.min(SHIELD_MAX,shield+shieldParams().regen*0.1);updateShield()}},100);
+ updateShield();
  const tut=document.querySelector('#tutorialCard');
  if(localStorage.getItem('kk_tutorial')){tut.style.display='none'}else{tut.style.display='';localStorage.setItem('kk_tutorial','1')}
  document.querySelector('#php').style.width='100%';document.querySelector('#ehp').style.width='100%';
@@ -179,7 +193,9 @@ function enemyAttack(){
  t.textContent='⚠️ INCOMING ATTACK!';e.src=currentEnemy.attack;e.classList.add('attackpose');
  setTimeout(()=>{
   if(locked)return;
-  if(defending){
+  const sp=shieldParams();
+  if(defending&&shield>=sp.cost){
+   shield-=sp.cost;updateShield();
    t.textContent='🛡️ BLOCKED!';document.querySelector('#log').textContent='Excellent! Your shield stopped the blow.';
    if(S.shield==='steel'&&Math.random()<0.4){
     let rd=8+Math.floor(Math.random()*6);ehp=Math.max(0,ehp-rd);document.querySelector('#ehp').style.width=ehp+'%';
@@ -190,7 +206,12 @@ function enemyAttack(){
   else{
    let d=currentEnemy.dmgMin+Math.floor(Math.random()*(currentEnemy.dmgMax-currentEnemy.dmgMin+1));
    if(S.armour==='leather')d=Math.round(d*0.75);
-   hp=Math.max(0,hp-d);document.querySelector('#php').style.width=hp+'%';t.textContent='💥 HIT!';document.querySelector('#log').textContent='You took '+d+' damage. Hold DEFEND when the warning appears.';flash(document.querySelector('#player'));if(hp<=0){finish(false);return}
+   hp=Math.max(0,hp-d);document.querySelector('#php').style.width=hp+'%';
+   if(defending){t.textContent='💥 SHIELD BROKE!';document.querySelector('#log').textContent='Your shield was too worn to hold — you took '+d+' damage!'}
+   else{t.textContent='💥 HIT!';document.querySelector('#log').textContent='You took '+d+' damage. Hold DEFEND when the warning appears.'}
+   const p=document.querySelector('#player');p.src='assets/knight/injured.png';p.classList.remove('defendpose');
+   setTimeout(()=>{if(!locked)p.src='assets/knight/idle-front.png'},400);
+   flash(p);if(hp<=0){finish(false);return}
   }
   e.src=currentEnemy.idle;e.className='fighter enemy';schedule();
  },currentEnemy.reactMs)
@@ -207,8 +228,9 @@ function attack(){
  flash(e);if(ehp<=0)finish(true)
 }
 function finish(win){
- locked=true;clearTimeout(timer);clearInterval(staminaTimer);
+ locked=true;clearTimeout(timer);clearInterval(staminaTimer);clearInterval(shieldTimer);
  document.querySelector('#attack').disabled=true;
+ document.querySelector('#defend').disabled=true;
  if(win){let g=35+Math.floor(Math.random()*31);S.gold+=g;xp(30);document.querySelector('#telegraph').textContent='🏆 VICTORY!';document.querySelector('#log').textContent='Defeated the '+currentEnemy.name+'! +'+g+' gold and +30 XP.'}
  else{document.querySelector('#telegraph').textContent='💀 DEFEAT';document.querySelector('#log').textContent='You were defeated. Try defending more often.'}
  save();
@@ -216,8 +238,8 @@ function finish(win){
 function flash(el){el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),400)}
 
 const db=document.querySelector('#defend');
-db.addEventListener('pointerdown',e=>{e.preventDefault();defending=true;db.textContent='🛡️ DEFENDING';const p=document.querySelector('#player');p.src='assets/knight/defend.png';p.classList.add('defendpose')});
-['pointerup','pointercancel','pointerleave'].forEach(ev=>db.addEventListener(ev,e=>{defending=false;db.textContent='🛡️ HOLD TO DEFEND';const p=document.querySelector('#player');p.src='assets/knight/idle-front.png';p.classList.remove('defendpose')}));
+db.addEventListener('pointerdown',e=>{e.preventDefault();if(db.disabled||shield<shieldParams().cost)return;defending=true;db.textContent='🛡️ DEFENDING';const p=document.querySelector('#player');p.src='assets/knight/defend.png';p.classList.add('defendpose')});
+['pointerup','pointercancel','pointerleave'].forEach(ev=>db.addEventListener(ev,e=>{defending=false;const p=document.querySelector('#player');p.src='assets/knight/idle-front.png';p.classList.remove('defendpose');updateShield()}));
 document.querySelector('#attack').addEventListener('pointerdown',e=>{e.preventDefault();attack()});
 const arena=document.querySelector('#arena');
 arena.addEventListener('pointerdown',e=>{startX=e.clientX;startY=e.clientY;arena.setPointerCapture?.(e.pointerId)});
@@ -238,6 +260,14 @@ function daily(){
  S.chest=today;save();go('chest');document.querySelector('#reward').textContent=txt;
 }
 save();
+
+let lastTouchEnd=0;
+document.addEventListener('touchend',e=>{
+ const now=Date.now();
+ if(now-lastTouchEnd<=350)e.preventDefault();
+ lastTouchEnd=now;
+},{passive:false});
+document.addEventListener('gesturestart',e=>e.preventDefault());
 </script>
 </body>
 </html>
