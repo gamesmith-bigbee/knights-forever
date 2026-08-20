@@ -13,6 +13,7 @@ body{touch-action:manipulation}
 button{font:700 18px Georgia,serif;color:var(--ink);background:var(--paper);border:3px solid var(--ink);border-radius:16px;box-shadow:0 4px 0 var(--ink);padding:13px 16px}
 button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
 button:disabled{opacity:.5}
+.control.dim{opacity:.55}
 #app{width:100%;height:100%;max-width:520px;margin:0 auto;display:flex;flex-direction:column;background:var(--sky);box-shadow:0 0 40px rgba(0,0,0,.45)}
 .top{height:64px;flex:none;background:rgba(255,246,223,.97);border-bottom:4px solid var(--ink);display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:20}
 .title{font-size:19px;font-weight:900;white-space:nowrap}.stats{display:flex;gap:5px;font:700 12px Arial}.pill{border:2px solid var(--ink);border-radius:20px;padding:5px 7px;background:#fffaf0}
@@ -122,7 +123,7 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
     <button class="back" onclick="go('home')">← Castle</button>
     <h2>⚔️ Sword Fight</h2>
   </div>
-  <div class="card" id="tutorialCard"><div class="muted">Hold your knight (or tap DEFEND) to block. Swipe straight up right as the enemy swings for a <b>perfect parry</b> — it won't hurt them, but it staggers them and opens a short window to strike. Swipe up-right for a fast <b>slash</b>, or down-right for a heavier <b>thrust</b>. Attacking outside an opening is risky — the enemy usually blocks it.</div></div>
+  <div class="card" id="tutorialCard"><div class="muted">Watch the enemy <b>draw its blade back</b> — that's your cue. Hold your knight (or hold DEFEND) to block. Swipe straight up as it lunges for a <b>perfect parry</b> — that staggers them and opens a window to strike. Tap or swipe up-right for a fast <b>slash</b>, down-right for a heavier <b>thrust</b>. Attacks land far better inside an opening.</div></div>
   <div class="arena" id="arena">
     <div class="hp player"><i id="php"></i><span>You</span></div>
     <div class="hp enemy"><i id="ehp"></i><span id="enemyName">Opponent</span></div>
@@ -169,24 +170,27 @@ const S={
  armour:localStorage.getItem('kk_armour')||'none',
  chest:localStorage.getItem('kk_chest')||''
 };
-let hp=100, ehp=100, defending=false, locked=false, timer=null, recoverTimer=null, startX=0,startY=0;
-const STAMINA_MAX=100, STAMINA_REGEN=25;
-const SLASH_COST=38, THRUST_COST=52;
-const OUTSIDE_BLOCK_CHANCE={slash:0.7,thrust:0.8};
-const RECOVER_WINDOW_MS=1200;
+let hp=100, ehp=100, defending=false, locked=false, swinging=false, timer=null, recoverTimer=null, startX=0,startY=0;
+const STAMINA_MAX=100, STAMINA_REGEN=40;
+const SLASH_COST=30, THRUST_COST=44;
+const OUTSIDE_BLOCK_CHANCE={slash:0.45,thrust:0.55};
+const RECOVER_WINDOW_MS=1400;
 let stamina=STAMINA_MAX, staminaTimer=null;
 let shield=100, shieldTimer=null;
-function shieldParams(){return S.shield==='steel'?{max:150,cost:30,regen:9}:{max:100,cost:32,regen:5}}
-const PARRY_WINDOW_MS=260;
+// Shields still regenerate while held, just slower — holding block is the move the
+// tutorial teaches, so it must never drain to a dead stop.
+const HELD_REGEN_SCALE=0.5;
+function shieldParams(){return S.shield==='steel'?{max:150,cost:22,regen:20}:{max:100,cost:26,regen:14}}
+const PARRY_WINDOW_MS=380;
 let telegraphStart=0;
 // phase: 'idle' (enemy waiting) | 'telegraph' (enemy winding up/swinging) | 'recover' (staggered after a perfect parry) | 'finished'
 let phase='idle';
 function setSprite(el,src,fallback){el.onerror=function(){el.onerror=null;el.src=fallback};el.src=src}
 
 const ENEMY_TYPES=[
- {name:'Bandit',hue:0,folder:'bandit',idle:'assets/bandit/idle.png',attacks:['assets/bandit/attack.png'],dmgMin:10,dmgMax:16,delayMin:1100,delayMax:2600,reactMs:750,minLevel:1},
- {name:'Orc Raider',hue:0,folder:'orc',idle:'assets/orc/idle.png',attacks:['assets/orc/attack.png','assets/orc/slash.png','assets/orc/thrust.png'],dmgMin:14,dmgMax:20,delayMin:900,delayMax:2100,reactMs:600,minLevel:1},
- {name:'Knight Captain',hue:280,folder:'knight',idle:'assets/knight/idle-front.png',attacks:['assets/knight/attack.png'],dmgMin:17,dmgMax:24,delayMin:700,delayMax:1700,reactMs:480,minLevel:4}
+ {name:'Bandit',hue:0,folder:'bandit',idle:'assets/bandit/idle.png',attacks:['assets/bandit/attack.png'],dmgMin:10,dmgMax:16,delayMin:1300,delayMax:2800,reactMs:900,minLevel:1},
+ {name:'Orc Raider',hue:0,folder:'orc',idle:'assets/orc/idle.png',attacks:['assets/orc/attack.png','assets/orc/slash.png','assets/orc/thrust.png'],dmgMin:13,dmgMax:19,delayMin:1100,delayMax:2400,reactMs:780,minLevel:1},
+ {name:'Knight Captain',hue:280,folder:'knight',idle:'assets/knight/idle-front.png',attacks:['assets/knight/attack.png'],dmgMin:16,dmgMax:22,delayMin:950,delayMax:2000,reactMs:650,minLevel:4}
 ];
 let currentEnemy=ENEMY_TYPES[0];
 
@@ -199,30 +203,41 @@ function save(){
 }
 function xp(n){S.xp+=n;while(S.xp>=100){S.xp-=100;S.level++;S.gold+=50}save()}
 function go(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='combat')reset()}
+// Controls are never given the `disabled` attribute — a disabled button eats the
+// press entirely, which reads as the game ignoring you. They dim instead, and the
+// handlers explain why nothing happened.
+function canSlash(){return stamina>=SLASH_COST&&!locked}
+function canThrust(){return stamina>=THRUST_COST&&!locked}
+function canDefend(){return shield>=shieldParams().cost&&!locked}
 function updateStamina(){
  const sBtn=document.querySelector('#slash'),tBtn=document.querySelector('#thrust');
  const pct=Math.round(stamina)+'%';
  sBtn.style.setProperty('--stam',pct);tBtn.style.setProperty('--stam',pct);
- const canSlash=stamina>=SLASH_COST&&!locked, canThrust=stamina>=THRUST_COST&&!locked;
- sBtn.disabled=!canSlash;tBtn.disabled=!canThrust;
- sBtn.textContent=canSlash?'⚔️ SLASH':'⚔️ TIRED';
- tBtn.textContent=canThrust?'🗡️ THRUST':'🗡️ TIRED';
+ const s=canSlash(),t=canThrust();
+ sBtn.classList.toggle('dim',!s);tBtn.classList.toggle('dim',!t);
+ sBtn.textContent=s?'⚔️ SLASH':'⚔️ TIRED';
+ tBtn.textContent=t?'🗡️ THRUST':'🗡️ TIRED';
 }
 function updateShield(){
- const btn=document.querySelector('#defend'),{cost,max}=shieldParams();
+ const btn=document.querySelector('#defend'),{max}=shieldParams();
  const pct=Math.max(0,Math.min(100,Math.round(shield/max*100)));
  btn.style.setProperty('--shield',pct+'%');
- const canDefend=shield>=cost&&!locked;
- btn.disabled=!canDefend;
- if(!defending)btn.textContent=canDefend?'🛡️ DEFEND':'🛡️ EXHAUSTED';
+ const ok=canDefend();
+ btn.classList.toggle('dim',!ok);
+ if(!defending)btn.textContent=ok?'🛡️ DEFEND':'🛡️ EXHAUSTED';
 }
 function reset(){
- hp=100;ehp=100;locked=true;defending=false;phase='idle';clearTimeout(timer);clearTimeout(recoverTimer);
+ hp=100;ehp=100;locked=true;defending=false;swinging=false;phase='idle';clearTimeout(timer);clearTimeout(recoverTimer);
  stamina=STAMINA_MAX;clearInterval(staminaTimer);
  staminaTimer=setInterval(()=>{if(!locked){stamina=Math.min(STAMINA_MAX,stamina+STAMINA_REGEN*0.1);updateStamina()}},100);
  updateStamina();
  shield=shieldParams().max;clearInterval(shieldTimer);
- shieldTimer=setInterval(()=>{if(!locked&&!defending){const sp=shieldParams();shield=Math.min(sp.max,shield+sp.regen*0.1);updateShield()}},100);
+ shieldTimer=setInterval(()=>{
+  if(locked)return;
+  const sp=shieldParams();
+  shield=Math.min(sp.max,shield+sp.regen*0.1*(defending?HELD_REGEN_SCALE:1));
+  updateShield();
+ },100);
  updateShield();
  const tut=document.querySelector('#tutorialCard');
  if(localStorage.getItem('kk_tutorial')){tut.style.display='none'}else{tut.style.display='';localStorage.setItem('kk_tutorial','1')}
@@ -325,9 +340,10 @@ function attackDamage(kind){
  return S.sword==='iron'?20+Math.floor(Math.random()*8):12+Math.floor(Math.random()*6);
 }
 function resolveAttack(kind){
- if(locked||phase==='finished')return;
+ if(locked||phase==='finished'||swinging)return;
  const cost=kind==='thrust'?THRUST_COST:SLASH_COST;
- if(stamina<cost)return;
+ if(stamina<cost){document.querySelector('#log').textContent='Too tired for a '+kind+' — catch your breath.';return}
+ swinging=true;
  stamina-=cost;updateStamina();
  const p=document.querySelector('#player'),e=document.querySelector('#enemy');
  const opportunity=phase==='recover';
@@ -337,6 +353,7 @@ function resolveAttack(kind){
  const blockChance=opportunity?0.04:OUTSIDE_BLOCK_CHANCE[kind];
  const blocked=Math.random()<blockChance;
  setTimeout(()=>{
+  swinging=false;
   if(locked)return;
   if(blocked){
    setSprite(e,'assets/'+currentEnemy.folder+'/defend.png',currentEnemy.idle);e.className='fighter enemy defendpose';
@@ -380,10 +397,9 @@ function updatePlayerHp(){
  document.querySelector('.hp.player').classList.toggle('low',hp>0&&hp<=30);
 }
 function finish(win){
- locked=true;phase='finished';clearTimeout(timer);clearTimeout(recoverTimer);clearInterval(staminaTimer);clearInterval(shieldTimer);
- document.querySelector('#slash').disabled=true;
- document.querySelector('#thrust').disabled=true;
- document.querySelector('#defend').disabled=true;
+ locked=true;phase='finished';swinging=false;clearTimeout(timer);clearTimeout(recoverTimer);clearInterval(staminaTimer);clearInterval(shieldTimer);
+ defending=false;db.textContent='🛡️ DEFEND';
+ ['#slash','#thrust','#defend'].forEach(s=>document.querySelector(s).classList.add('dim'));
  const p=document.querySelector('#player'),e=document.querySelector('#enemy');
  p.classList.remove('attackpose','defendpose','lunge','hitrecoil');e.classList.remove('attackpose','defendpose','stunned','hitrecoil','lunge');
  p.src='assets/knight/'+(win?'victory':'defeated')+'.png';
@@ -426,7 +442,8 @@ function spawnParticles(el){
 }
 
 function startDefending(){
- if(locked||db.disabled||shield<shieldParams().cost)return;
+ if(locked||defending)return;
+ if(!canDefend()){document.querySelector('#log').textContent='Your shield is too worn — give it a moment to recover.';return}
  defending=true;db.textContent='🛡️ DEFENDING';
  const p=document.querySelector('#player');p.src='assets/knight/defend.png';p.classList.add('defendpose');
 }
@@ -437,17 +454,26 @@ function stopDefending(){
  updateShield();
 }
 const db=document.querySelector('#defend');
-db.addEventListener('pointerdown',e=>{e.preventDefault();startDefending()});
-['pointerup','pointercancel','pointerleave'].forEach(ev=>db.addEventListener(ev,()=>stopDefending()));
+// Capture the pointer so a small finger drift off the button doesn't drop the block.
+db.addEventListener('pointerdown',e=>{
+ e.preventDefault();
+ try{db.setPointerCapture?.(e.pointerId)}catch(err){}
+ startDefending();
+});
+['pointerup','pointercancel'].forEach(ev=>db.addEventListener(ev,e=>{
+ try{db.releasePointerCapture?.(e.pointerId)}catch(err){}
+ stopDefending();
+}));
 document.querySelector('#slash').addEventListener('pointerdown',e=>{e.preventDefault();resolveAttack('slash')});
 document.querySelector('#thrust').addEventListener('pointerdown',e=>{e.preventDefault();resolveAttack('thrust')});
 function classifySwipe(dx,dy){
- if(Math.hypot(dx,dy)<30)return null;
- if(Math.abs(dy)>Math.abs(dx)*1.2&&dy<-30)return 'parry';
+ // A tap is a deliberate input too — treat it as a quick slash rather than dropping it.
+ if(Math.hypot(dx,dy)<24)return 'slash';
+ if(Math.abs(dy)>Math.abs(dx)*1.2&&dy<-24)return 'parry';
  const angle=Math.atan2(-dy,dx)*180/Math.PI;
- if(dx>0&&angle>=20&&angle<70)return 'slash';
- if(dx>0&&angle<=-20&&angle>=-70)return 'thrust';
- return null;
+ if(angle>=15&&angle<75)return 'slash';
+ if(angle<=-15&&angle>=-75)return 'thrust';
+ return 'slash';
 }
 const arena=document.querySelector('#arena');
 let arenaHolding=false;
@@ -456,11 +482,11 @@ arena.addEventListener('pointerdown',e=>{
  try{arena.setPointerCapture?.(e.pointerId)}catch(err){}
  const rect=arena.getBoundingClientRect();
  const relX=(e.clientX-rect.left)/rect.width;
- if(relX<=0.42&&!db.disabled){startDefending();arenaHolding=true}else{arenaHolding=false}
+ if(relX<=0.42&&canDefend()){startDefending();arenaHolding=true}else{arenaHolding=false}
 });
 arena.addEventListener('pointermove',e=>{
  if(!arenaHolding)return;
- if(Math.hypot(e.clientX-startX,e.clientY-startY)>26){stopDefending();arenaHolding=false}
+ if(Math.hypot(e.clientX-startX,e.clientY-startY)>24){stopDefending();arenaHolding=false}
 });
 arena.addEventListener('pointerup',e=>{
  if(arenaHolding){stopDefending();arenaHolding=false;return}
