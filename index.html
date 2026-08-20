@@ -42,6 +42,7 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 .fighter{position:absolute;bottom:14%;height:69%;width:auto;max-width:50%;object-fit:contain;object-position:bottom;filter:drop-shadow(0 6px 0 rgba(42,37,34,.25));pointer-events:none;transition:transform .16s,left .16s,right .16s}
 .fighter.player{left:5%}.fighter.enemy{right:5%;transform:scaleX(-1)}
 .fighter.enemy.attackpose{transform:scaleX(-1) translateX(-18px) rotate(-3deg)}
+.fighter.enemy.windup{transform:scaleX(-1) translateX(14px) rotate(6deg)}
 .fighter.player.attackpose{transform:translateX(24px) rotate(-3deg)}
 .fighter.player.defendpose{transform:translateX(-5px) scale(.97)}
 .fighter.enemy.defendpose{transform:scaleX(-1) translateX(5px) scale(.97)}
@@ -254,8 +255,17 @@ function enemyAttack(){
  if(locked)return;
  phase='telegraph';
  const t=document.querySelector('#telegraph'),e=document.querySelector('#enemy');
- t.textContent='⚠️ Watch out!';t.classList.add('warn');e.src=currentEnemy.attacks[Math.floor(Math.random()*currentEnemy.attacks.length)];e.classList.add('attackpose');
  telegraphStart=Date.now();
+ const atkSrc=currentEnemy.attacks[Math.floor(Math.random()*currentEnemy.attacks.length)];
+ const windowStart=currentEnemy.reactMs-Math.min(PARRY_WINDOW_MS,currentEnemy.reactMs*0.6);
+ const windupMs=Math.max(120,windowStart-80);
+ t.textContent='The '+currentEnemy.name+' draws back its blade...';t.classList.remove('warn');
+ e.src=atkSrc;e.className='fighter enemy windup';
+ setTimeout(()=>{
+  if(locked||phase!=='telegraph')return;
+  t.textContent='⚠️ Watch out!';t.classList.add('warn');
+  e.className='fighter enemy attackpose';
+ },windupMs);
  setTimeout(()=>{
   if(locked||phase!=='telegraph')return;
   t.classList.remove('warn');
