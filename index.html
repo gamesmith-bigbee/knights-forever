@@ -13,6 +13,7 @@ body{touch-action:manipulation}
 button{font:700 18px Georgia,serif;color:var(--ink);background:var(--paper);border:3px solid var(--ink);border-radius:16px;box-shadow:0 4px 0 var(--ink);padding:13px 16px}
 button:active{transform:translateY(3px);box-shadow:0 1px 0 var(--ink)}
 button:disabled{opacity:.5}
+.control.dim{opacity:.55}
 #app{width:100%;height:100%;max-width:520px;margin:0 auto;display:flex;flex-direction:column;background:var(--sky);box-shadow:0 0 40px rgba(0,0,0,.45)}
 .top{height:64px;flex:none;background:rgba(255,246,223,.97);border-bottom:4px solid var(--ink);display:flex;align-items:center;justify-content:space-between;padding:0 12px;z-index:20}
 .title{font-size:19px;font-weight:900;white-space:nowrap}.stats{display:flex;gap:5px;font:700 12px Arial}.pill{border:2px solid var(--ink);border-radius:20px;padding:5px 7px;background:#fffaf0}
@@ -54,9 +55,12 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 #combat.active{display:flex;flex-direction:column;overflow:hidden}
 #combat.active .back,#combat.active .card,#combat.active .controls,#combat.active .combat-log{flex:none}
 .hp{position:absolute;top:12px;height:24px;width:40%;border:3px solid var(--ink);border-radius:20px;background:#fff6df;overflow:hidden;z-index:3}
-.hp.player{left:3%}.hp.enemy{right:3%}.hp i{display:block;height:100%;background:#c74a3f;width:100%;transition:width .2s}.hp span{position:absolute;inset:0;text-align:center;font:700 12px Arial;line-height:18px}
+.hp.player{left:3%}.hp.enemy{right:3%}.hp i{display:block;height:100%;background:#c74a3f;width:100%;transition:width .2s;position:relative;z-index:1}.hp span{position:absolute;inset:0;text-align:center;font:700 12px Arial;line-height:18px;z-index:2}
+/* Lagging "chip" bar: drains a beat after the red one, so damage is legible at a glance. */
+.hp u{position:absolute;left:0;top:0;height:100%;width:100%;background:#ffd447;transition:width .5s .22s ease-out;z-index:0}
+.hp.hurt,.hp.player.low.hurt{animation:hpHurt .45s}
+@keyframes hpHurt{0%,100%{box-shadow:0 0 0 rgba(255,212,71,0)}30%{box-shadow:0 0 16px 6px rgba(255,212,71,.95)}}
 .telegraph{position:absolute;left:50%;top:48px;transform:translateX(-50%);background:#fff6df;border:3px solid var(--ink);border-radius:15px;padding:7px 12px;font-weight:900;z-index:4;white-space:nowrap}
-.flash{animation:flash .18s 2}@keyframes flash{50%{filter:brightness(2) drop-shadow(0 6px 0 rgba(42,37,34,.25))}}
 .telegraph.warn{animation:pulseWarn .5s infinite}@keyframes pulseWarn{0%,100%{transform:translateX(-50%) scale(1)}50%{transform:translateX(-50%) scale(1.08)}}
 .countdown{position:absolute;inset:0;display:none;align-items:center;justify-content:center;z-index:9;pointer-events:none;font:900 76px Georgia,serif;color:#fff6df;-webkit-text-stroke:2px var(--ink);text-shadow:0 5px 0 var(--ink)}
 .countdown.show{display:flex}.countdown.fight{color:var(--gold);font-size:56px}
@@ -72,9 +76,22 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 .fighter.player.lunge{transform:translateX(46px) rotate(-5deg)}
 .fighter.enemy.lunge{transform:scaleX(-1) translateX(-46px) rotate(-5deg)}
 .fighter.player.hitrecoil{animation:hitRecoilPlayer .32s ease-out}
-@keyframes hitRecoilPlayer{0%{transform:translateX(0) rotate(0) scale(1.35)}30%{transform:translateX(-18px) rotate(5deg) scale(1.35)}100%{transform:translateX(0) rotate(0) scale(1.35)}}
+@keyframes hitRecoilPlayer{0%{transform:translateX(0) rotate(0) scale(1.35)}30%{transform:translateX(-26px) rotate(7deg) scale(1.35)}100%{transform:translateX(0) rotate(0) scale(1.35)}}
 .fighter.enemy.hitrecoil{animation:hitRecoilEnemy .32s ease-out}
-@keyframes hitRecoilEnemy{0%{transform:scaleX(-1) translateX(0) rotate(0)}30%{transform:scaleX(-1) translateX(18px) rotate(-5deg) scale(1.05)}100%{transform:scaleX(-1) translateX(0) rotate(0)}}
+@keyframes hitRecoilEnemy{0%{transform:scaleX(-1) translateX(0) rotate(0)}30%{transform:scaleX(-1) translateX(26px) rotate(-7deg) scale(1.06)}100%{transform:scaleX(-1) translateX(0) rotate(0)}}
+/* An element resolves ONE animation declaration, so the recoil selectors above would
+   silently replace any separate flash class. Impact must be co-declared to render. */
+.fighter.impact{animation:impactBlowout .3s ease-out}
+.fighter.player.hitrecoil.impact{animation:hitRecoilPlayer .32s ease-out,impactBlowout .3s ease-out}
+.fighter.enemy.hitrecoil.impact{animation:hitRecoilEnemy .32s ease-out,impactBlowout .3s ease-out}
+/* Starts white so a frozen frame IS the impact flash, then settles back. */
+@keyframes impactBlowout{0%,32%{filter:brightness(0) invert(1) drop-shadow(0 0 12px rgba(255,255,255,.95))}100%{filter:drop-shadow(0 6px 0 rgba(42,37,34,.25))}}
+/* Freeze the fighters only — the burst, damage number and sparks must keep playing,
+   otherwise the freeze hides the very feedback it is meant to sell. */
+.arena.hitstop .fighter{animation-play-state:paused!important}
+.impactring{position:absolute;width:22px;height:22px;margin:-11px 0 0 -11px;border-radius:50%;border:5px solid #fff6df;box-shadow:0 0 12px 4px rgba(226,166,43,.9);pointer-events:none;z-index:7;animation:impactRing .4s ease-out forwards}
+.impactring.block{border-color:#9fb3bd;box-shadow:0 0 8px 2px rgba(120,145,158,.7);animation-duration:.3s}
+@keyframes impactRing{0%{opacity:0;transform:scale(.25)}18%{opacity:1}100%{opacity:0;transform:scale(3.8)}}
 .arena.shake-heavy{animation:shakeHeavy .55s}
 @keyframes shakeHeavy{10%,90%{transform:translateX(-7px)}20%,80%{transform:translateX(11px)}30%,50%,70%{transform:translateX(-15px)}40%,60%{transform:translateX(15px)}}
 .redflash-overlay{position:absolute;inset:0;background:#c42828;opacity:0;pointer-events:none;z-index:5}
@@ -87,8 +104,10 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 .bigcallout{position:absolute;left:50%;top:38%;transform:translate(-50%,-50%) scale(.4);color:var(--gold);font:900 30px Georgia,serif;text-shadow:0 3px 0 var(--ink);-webkit-text-stroke:1px var(--ink);z-index:10;opacity:0;pointer-events:none;white-space:nowrap}
 .bigcallout.show{animation:bigCalloutPop .9s ease-out}
 @keyframes bigCalloutPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.4)}20%{opacity:1;transform:translate(-50%,-50%) scale(1.15)}35%{transform:translate(-50%,-50%) scale(1)}80%{opacity:1}100%{opacity:0;transform:translate(-50%,-55%) scale(1.05)}}
-.dmgpop{position:absolute;transform:translate(-50%,0);font:900 22px Arial;color:#b23b30;text-shadow:0 2px 0 rgba(255,255,255,.5);pointer-events:none;animation:dmgFloat .85s ease-out forwards;z-index:6}
-@keyframes dmgFloat{0%{opacity:0;transform:translate(-50%,0) scale(.6)}18%{opacity:1;transform:translate(-50%,-8px) scale(1.15)}100%{opacity:0;transform:translate(-50%,-58px) scale(1)}}
+.dmgpop{position:absolute;transform:translate(-50%,0);font:900 32px Georgia,serif;color:#ffd447;-webkit-text-stroke:1.5px var(--ink);text-shadow:0 3px 0 var(--ink);pointer-events:none;animation:dmgFloat .95s ease-out forwards;z-index:8}
+.dmgpop.big{font-size:44px}
+.dmgpop.incoming{color:#ff6a5c}
+@keyframes dmgFloat{0%{opacity:0;transform:translate(-50%,0) scale(.5)}15%{opacity:1;transform:translate(-50%,-12px) scale(1.35)}30%{transform:translate(-50%,-18px) scale(1)}100%{opacity:0;transform:translate(-50%,-72px) scale(.95)}}
 .hp.player.low{animation:lowHpGlow 1s infinite}@keyframes lowHpGlow{0%,100%{box-shadow:0 0 0 rgba(201,60,60,0)}50%{box-shadow:0 0 12px 4px rgba(201,60,60,.75)}}
 .controls{display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px;margin-top:10px}
 .control{height:82px;touch-action:none;font-size:14px;padding:8px 6px}
@@ -127,10 +146,10 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
     <button class="back" onclick="go('home')">← Castle</button>
     <h2>⚔️ Sword Fight</h2>
   </div>
-  <div class="card" id="tutorialCard"><div class="muted">Hold your knight (or tap DEFEND) to block. Swipe straight up right as the enemy swings for a <b>perfect parry</b> — it won't hurt them, but it staggers them and opens a short window to strike. Swipe up-right for a fast <b>slash</b>, or down-right for a heavier <b>thrust</b>. Attacking outside an opening is risky — the enemy usually blocks it.</div></div>
+  <div class="card" id="tutorialCard"><div class="muted">Watch the enemy <b>draw its blade back</b> — that's your cue. Hold your knight (or hold DEFEND) to block. Swipe straight up as it lunges for a <b>perfect parry</b> — that staggers them and opens a window to strike. Tap or swipe up-right for a fast <b>slash</b>, down-right for a heavier <b>thrust</b>. Attacks land far better inside an opening.</div></div>
   <div class="arena" id="arena">
-    <div class="hp player"><i id="php"></i><span>You</span></div>
-    <div class="hp enemy"><i id="ehp"></i><span id="enemyName">Opponent</span></div>
+    <div class="hp player"><u id="phpGhost"></u><i id="php"></i><span>You</span></div>
+    <div class="hp enemy"><u id="ehpGhost"></u><i id="ehp"></i><span id="enemyName">Opponent</span></div>
     <div class="telegraph" id="telegraph">The opponent watches you...</div>
     <div class="bigcallout" id="bigcallout"></div>
     <div class="redflash-overlay" id="redflash"></div>
@@ -174,24 +193,27 @@ const S={
  armour:localStorage.getItem('kk_armour')||'none',
  chest:localStorage.getItem('kk_chest')||''
 };
-let hp=100, ehp=100, defending=false, locked=false, timer=null, recoverTimer=null, startX=0,startY=0;
-const STAMINA_MAX=100, STAMINA_REGEN=25;
-const SLASH_COST=38, THRUST_COST=52;
-const OUTSIDE_BLOCK_CHANCE={slash:0.7,thrust:0.8};
-const RECOVER_WINDOW_MS=1200;
+let hp=100, ehp=100, defending=false, locked=false, swinging=false, timer=null, recoverTimer=null, startX=0,startY=0;
+const STAMINA_MAX=100, STAMINA_REGEN=40;
+const SLASH_COST=30, THRUST_COST=44;
+const OUTSIDE_BLOCK_CHANCE={slash:0.45,thrust:0.55};
+const RECOVER_WINDOW_MS=1400;
 let stamina=STAMINA_MAX, staminaTimer=null;
 let shield=100, shieldTimer=null;
-function shieldParams(){return S.shield==='steel'?{max:150,cost:30,regen:9}:{max:100,cost:32,regen:5}}
-const PARRY_WINDOW_MS=260;
+// Shields still regenerate while held, just slower — holding block is the move the
+// tutorial teaches, so it must never drain to a dead stop.
+const HELD_REGEN_SCALE=0.5;
+function shieldParams(){return S.shield==='steel'?{max:150,cost:22,regen:20}:{max:100,cost:26,regen:14}}
+const PARRY_WINDOW_MS=380;
 let telegraphStart=0;
 // phase: 'idle' (enemy waiting) | 'telegraph' (enemy winding up/swinging) | 'recover' (staggered after a perfect parry) | 'finished'
 let phase='idle';
 function setSprite(el,src,fallback){el.onerror=function(){el.onerror=null;el.src=fallback};el.src=src}
 
 const ENEMY_TYPES=[
- {name:'Bandit',hue:0,folder:'bandit',idle:'assets/bandit/idle.png',attacks:['assets/bandit/attack.png'],dmgMin:10,dmgMax:16,delayMin:1100,delayMax:2600,reactMs:750,minLevel:1},
- {name:'Orc Raider',hue:0,folder:'orc',idle:'assets/orc/idle.png',attacks:['assets/orc/attack.png','assets/orc/slash.png','assets/orc/thrust.png'],dmgMin:14,dmgMax:20,delayMin:900,delayMax:2100,reactMs:600,minLevel:1},
- {name:'Knight Captain',hue:280,folder:'knight',idle:'assets/knight/idle-front.png',attacks:['assets/knight/attack.png'],dmgMin:17,dmgMax:24,delayMin:700,delayMax:1700,reactMs:480,minLevel:4}
+ {name:'Bandit',hue:0,folder:'bandit',idle:'assets/bandit/idle.png',attacks:['assets/bandit/attack.png'],dmgMin:10,dmgMax:16,delayMin:1300,delayMax:2800,reactMs:900,minLevel:1},
+ {name:'Orc Raider',hue:0,folder:'orc',idle:'assets/orc/idle.png',attacks:['assets/orc/attack.png','assets/orc/slash.png','assets/orc/thrust.png'],dmgMin:13,dmgMax:19,delayMin:1100,delayMax:2400,reactMs:780,minLevel:1},
+ {name:'Knight Captain',hue:280,folder:'knight',idle:'assets/knight/idle-front.png',attacks:['assets/knight/attack.png'],dmgMin:16,dmgMax:22,delayMin:950,delayMax:2000,reactMs:650,minLevel:4}
 ];
 let currentEnemy=ENEMY_TYPES[0];
 
@@ -204,34 +226,45 @@ function save(){
 }
 function xp(n){S.xp+=n;while(S.xp>=100){S.xp-=100;S.level++;S.gold+=50}save()}
 function go(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove('active'));document.getElementById(id).classList.add('active');if(id==='combat')reset()}
+// Controls are never given the `disabled` attribute — a disabled button eats the
+// press entirely, which reads as the game ignoring you. They dim instead, and the
+// handlers explain why nothing happened.
+function canSlash(){return stamina>=SLASH_COST&&!locked}
+function canThrust(){return stamina>=THRUST_COST&&!locked}
+function canDefend(){return shield>=shieldParams().cost&&!locked}
 function updateStamina(){
  const sBtn=document.querySelector('#slash'),tBtn=document.querySelector('#thrust');
  const pct=Math.round(stamina)+'%';
  sBtn.style.setProperty('--stam',pct);tBtn.style.setProperty('--stam',pct);
- const canSlash=stamina>=SLASH_COST&&!locked, canThrust=stamina>=THRUST_COST&&!locked;
- sBtn.disabled=!canSlash;tBtn.disabled=!canThrust;
- sBtn.textContent=canSlash?'⚔️ SLASH':'⚔️ TIRED';
- tBtn.textContent=canThrust?'🗡️ THRUST':'🗡️ TIRED';
+ const s=canSlash(),t=canThrust();
+ sBtn.classList.toggle('dim',!s);tBtn.classList.toggle('dim',!t);
+ sBtn.textContent=s?'⚔️ SLASH':'⚔️ TIRED';
+ tBtn.textContent=t?'🗡️ THRUST':'🗡️ TIRED';
 }
 function updateShield(){
- const btn=document.querySelector('#defend'),{cost,max}=shieldParams();
+ const btn=document.querySelector('#defend'),{max}=shieldParams();
  const pct=Math.max(0,Math.min(100,Math.round(shield/max*100)));
  btn.style.setProperty('--shield',pct+'%');
- const canDefend=shield>=cost&&!locked;
- btn.disabled=!canDefend;
- if(!defending)btn.textContent=canDefend?'🛡️ DEFEND':'🛡️ EXHAUSTED';
+ const ok=canDefend();
+ btn.classList.toggle('dim',!ok);
+ if(!defending)btn.textContent=ok?'🛡️ DEFEND':'🛡️ EXHAUSTED';
 }
 function reset(){
- hp=100;ehp=100;locked=true;defending=false;phase='idle';clearTimeout(timer);clearTimeout(recoverTimer);
+ hp=100;ehp=100;locked=true;defending=false;swinging=false;phase='idle';clearTimeout(timer);clearTimeout(recoverTimer);
  stamina=STAMINA_MAX;clearInterval(staminaTimer);
  staminaTimer=setInterval(()=>{if(!locked){stamina=Math.min(STAMINA_MAX,stamina+STAMINA_REGEN*0.1);updateStamina()}},100);
  updateStamina();
  shield=shieldParams().max;clearInterval(shieldTimer);
- shieldTimer=setInterval(()=>{if(!locked&&!defending){const sp=shieldParams();shield=Math.min(sp.max,shield+sp.regen*0.1);updateShield()}},100);
+ shieldTimer=setInterval(()=>{
+  if(locked)return;
+  const sp=shieldParams();
+  shield=Math.min(sp.max,shield+sp.regen*0.1*(defending?HELD_REGEN_SCALE:1));
+  updateShield();
+ },100);
  updateShield();
  const tut=document.querySelector('#tutorialCard');
  if(localStorage.getItem('kk_tutorial')){tut.style.display='none'}else{tut.style.display='';localStorage.setItem('kk_tutorial','1')}
- updatePlayerHp();document.querySelector('#ehp').style.width='100%';
+ updatePlayerHp();updateEnemyHp();
  const pool=ENEMY_TYPES.filter(t=>t.minLevel<=S.level);
  currentEnemy=pool[Math.floor(Math.random()*pool.length)];
  document.querySelector('#enemyName').textContent=currentEnemy.name;
@@ -260,13 +293,20 @@ function enemyAttack(){
  if(locked)return;
  phase='telegraph';
  const t=document.querySelector('#telegraph'),e=document.querySelector('#enemy');
- t.textContent='⚠️ Watch out!';t.classList.add('warn');e.src=currentEnemy.attacks[Math.floor(Math.random()*currentEnemy.attacks.length)];e.className='fighter enemy windup';
  telegraphStart=Date.now();
- const strikeLead=Math.min(PARRY_WINDOW_MS,currentEnemy.reactMs*0.6);
+ const atkSrc=currentEnemy.attacks[Math.floor(Math.random()*currentEnemy.attacks.length)];
+ const windowStart=currentEnemy.reactMs-Math.min(PARRY_WINDOW_MS,currentEnemy.reactMs*0.6);
+ const windupMs=Math.max(120,windowStart-80);
+ t.textContent='The '+currentEnemy.name+' draws back its blade...';t.classList.remove('warn');
+ e.src=atkSrc;e.className='fighter enemy windup';
  setTimeout(()=>{
   if(locked||phase!=='telegraph')return;
-  e.className='fighter enemy strike';e.style.animationDuration=strikeLead+'ms';
- },currentEnemy.reactMs-strikeLead);
+  t.textContent='⚠️ Watch out!';t.classList.add('warn');
+ },windupMs);
+ setTimeout(()=>{
+  if(locked||phase!=='telegraph')return;
+  e.className='fighter enemy strike';e.style.animationDuration=(currentEnemy.reactMs-windowStart)+'ms';
+ },windowStart);
  setTimeout(()=>{
   if(locked||phase!=='telegraph')return;
   t.classList.remove('warn');
@@ -275,9 +315,10 @@ function enemyAttack(){
    shield-=sp.cost;updateShield();
    t.textContent='🛡️ BLOCKED!';document.querySelector('#log').textContent='Your shield stops the blow — but the '+currentEnemy.name+' keeps its guard up.';
    if(S.shield==='steel'&&Math.random()<0.4){
-    let rd=8+Math.floor(Math.random()*6);ehp=Math.max(0,ehp-rd);document.querySelector('#ehp').style.width=ehp+'%';
+    let rd=8+Math.floor(Math.random()*6);ehp=Math.max(0,ehp-rd);updateEnemyHp();hurtBar('.hp.enemy');
     t.textContent='⚡ RIPOSTE!';document.querySelector('#log').textContent='Your steel shield staggers them for '+rd+' bonus damage!';
-    e.src='assets/'+currentEnemy.folder+'/injured.png';e.className='fighter enemy';flash(e);popDamage(e,rd,'#3f6b3a');
+    e.src='assets/'+currentEnemy.folder+'/injured.png';e.className='fighter enemy impact';
+    hitstop(65);impactRing(e);spawnParticles(e,7);popDamage(e,rd);
     if(ehp<=0){finish(true);return}
    }
    phase='idle';
@@ -290,9 +331,10 @@ function enemyAttack(){
    hp=Math.max(0,hp-d);updatePlayerHp();
    if(defending){t.textContent='💥 SHIELD BROKE!';document.querySelector('#log').textContent='Your shield was too worn to hold — you took '+d+' damage!'}
    else{t.textContent='💥 HIT!';document.querySelector('#log').textContent='You took '+d+' damage. Watch for an opening to parry.'}
-   const p=document.querySelector('#player');p.src='assets/knight/injured.png';p.className='fighter player hitrecoil';
+   const p=document.querySelector('#player');p.src='assets/knight/injured.png';p.className='fighter player hitrecoil impact';
    setTimeout(()=>{if(!locked){p.src='assets/knight/idle-front.png';p.className='fighter player'}},400);
-   redFlash();flash(p);shakeArena();popDamage(p,d,'#b23b30');if(hp<=0){finish(false);return}
+   hitstop(65);redFlash();impactRing(p);shakeArena();popDamage(p,d,{incoming:true});hurtBar('.hp.player');
+   if(hp<=0){finish(false);return}
   }
   phase='idle';
   e.src=currentEnemy.idle;e.className='fighter enemy';schedule();
@@ -311,7 +353,7 @@ function attemptParry(){
  shakeArena(true);
  setSprite(p,'assets/knight/parry.png','assets/knight/defend.png');p.className='fighter player defendpose';
  setTimeout(()=>{if(!locked&&phase==='recover'){p.src='assets/knight/idle-front.png';p.className='fighter player'}},280);
- setSprite(e,'assets/'+currentEnemy.folder+'/injured.png',currentEnemy.idle);e.className='fighter enemy stunned';flash(e);
+ setSprite(e,'assets/'+currentEnemy.folder+'/injured.png',currentEnemy.idle);e.className='fighter enemy stunned';
  recoverTimer=setTimeout(()=>{
   if(locked||phase!=='recover')return;
   phase='idle';
@@ -326,9 +368,10 @@ function attackDamage(kind){
  return S.sword==='iron'?20+Math.floor(Math.random()*8):12+Math.floor(Math.random()*6);
 }
 function resolveAttack(kind){
- if(locked||phase==='finished')return;
+ if(locked||phase==='finished'||swinging)return;
  const cost=kind==='thrust'?THRUST_COST:SLASH_COST;
- if(stamina<cost)return;
+ if(stamina<cost){document.querySelector('#log').textContent='Too tired for a '+kind+' — catch your breath.';return}
+ swinging=true;
  stamina-=cost;updateStamina();
  const p=document.querySelector('#player'),e=document.querySelector('#enemy');
  const opportunity=phase==='recover';
@@ -338,20 +381,27 @@ function resolveAttack(kind){
  const blockChance=opportunity?0.04:OUTSIDE_BLOCK_CHANCE[kind];
  const blocked=Math.random()<blockChance;
  setTimeout(()=>{
+  swinging=false;
   if(locked)return;
   if(blocked){
+   // Deliberately dull: a block should feel nothing like a clean hit.
    setSprite(e,'assets/'+currentEnemy.folder+'/defend.png',currentEnemy.idle);e.className='fighter enemy defendpose';
    document.querySelector('#telegraph').textContent='🛡️ BLOCKED!';
    document.querySelector('#log').textContent='The '+currentEnemy.name+' blocks your '+kind+'!';
+   impactRing(e,true);
    p.className='fighter player';p.src='assets/knight/idle-front.png';
   }else{
    let d=attackDamage(kind);
+   const heavy=opportunity||kind==='thrust';
    p.className='fighter player lunge';
-   setSprite(e,'assets/'+currentEnemy.folder+'/injured.png',currentEnemy.idle);e.className='fighter enemy hitrecoil';
+   setSprite(e,'assets/'+currentEnemy.folder+'/injured.png',currentEnemy.idle);
+   e.className='fighter enemy hitrecoil impact';
    document.querySelector('#telegraph').textContent='⚔️ '+d+' DAMAGE!';
    document.querySelector('#log').textContent=opportunity?'Riposte! Your '+kind+' connects clean.':'Your '+kind+' connects.';
-   swordFlash(e,kind);spawnParticles(e);flash(e);shakeArena();popDamage(e,d,'#3f6b3a');
-   ehp=Math.max(0,ehp-d);document.querySelector('#ehp').style.width=ehp+'%';
+   hitstop(heavy?90:65);
+   impactRing(e);swordFlash(e,kind);spawnParticles(e,heavy?11:8);
+   shakeArena(heavy);popDamage(e,d,{big:heavy});
+   ehp=Math.max(0,ehp-d);updateEnemyHp();hurtBar('.hp.enemy');
    if(ehp<=0){finish(true);return}
   }
   setTimeout(()=>{
@@ -365,28 +415,46 @@ function resolveAttack(kind){
   }
  },swingMs);
 }
-function popDamage(el,amount,color){
+function popDamage(el,amount,opts){
+ opts=opts||{};
  const arenaEl=document.querySelector('#arena');
  const rect=el.getBoundingClientRect(),arenaRect=arenaEl.getBoundingClientRect();
  const span=document.createElement('div');
- span.className='dmgpop';span.textContent='-'+amount;
+ span.className='dmgpop'+(opts.big?' big':'')+(opts.incoming?' incoming':'');
+ span.textContent='-'+amount;
  span.style.left=(rect.left-arenaRect.left+rect.width/2)+'px';
  span.style.top=(rect.top-arenaRect.top+rect.height*0.22)+'px';
- if(color)span.style.color=color;
  arenaEl.appendChild(span);
- setTimeout(()=>span.remove(),850);
+ setTimeout(()=>span.remove(),960);
 }
 function updatePlayerHp(){
  document.querySelector('#php').style.width=hp+'%';
+ document.querySelector('#phpGhost').style.width=hp+'%';
  document.querySelector('.hp.player').classList.toggle('low',hp>0&&hp<=30);
 }
+function updateEnemyHp(){
+ document.querySelector('#ehp').style.width=ehp+'%';
+ document.querySelector('#ehpGhost').style.width=ehp+'%';
+}
+function hurtBar(sel){const b=document.querySelector(sel);b.classList.remove('hurt');void b.offsetWidth;b.classList.add('hurt');setTimeout(()=>b.classList.remove('hurt'),460)}
+// Brief freeze on impact — the single strongest read that a blow actually landed.
+function hitstop(ms){const a=document.querySelector('#arena');a.classList.add('hitstop');setTimeout(()=>a.classList.remove('hitstop'),ms)}
+function impactRing(el,blocked){
+ const arenaEl=document.querySelector('#arena');
+ const rect=el.getBoundingClientRect(),arenaRect=arenaEl.getBoundingClientRect();
+ const d=document.createElement('div');
+ d.className='impactring'+(blocked?' block':'');
+ d.style.left=(rect.left-arenaRect.left+rect.width*0.4)+'px';
+ d.style.top=(rect.top-arenaRect.top+rect.height*0.36)+'px';
+ arenaEl.appendChild(d);
+ setTimeout(()=>d.remove(),420);
+}
 function finish(win){
- locked=true;phase='finished';clearTimeout(timer);clearTimeout(recoverTimer);clearInterval(staminaTimer);clearInterval(shieldTimer);
- document.querySelector('#slash').disabled=true;
- document.querySelector('#thrust').disabled=true;
- document.querySelector('#defend').disabled=true;
+ locked=true;phase='finished';swinging=false;clearTimeout(timer);clearTimeout(recoverTimer);clearInterval(staminaTimer);clearInterval(shieldTimer);
+ defending=false;db.textContent='🛡️ DEFEND';
+ ['#slash','#thrust','#defend'].forEach(s=>document.querySelector(s).classList.add('dim'));
  const p=document.querySelector('#player'),e=document.querySelector('#enemy');
- p.classList.remove('swing-slash','swing-thrust','defendpose','lunge','hitrecoil');e.classList.remove('windup','strike','defendpose','stunned','hitrecoil','lunge');e.style.animationDuration='';
+ p.classList.remove('swing-slash','swing-thrust','defendpose','lunge','hitrecoil','impact');e.classList.remove('windup','strike','defendpose','stunned','hitrecoil','lunge','impact');e.style.animationDuration='';
  p.src='assets/knight/'+(win?'victory':'defeated')+'.png';
  e.src='assets/'+currentEnemy.folder+'/'+(win?'defeated':'victory')+'.png';
  (win?p:e).classList.add('pop');
@@ -394,7 +462,6 @@ function finish(win){
  else{document.querySelector('#telegraph').textContent='💀 DEFEAT';document.querySelector('#log').textContent='You were defeated. Try defending more often.'}
  save();
 }
-function flash(el){el.classList.add('flash');setTimeout(()=>el.classList.remove('flash'),400)}
 function shakeArena(heavy){const a=document.querySelector('#arena');a.classList.remove('shake','shake-heavy');void a.offsetWidth;a.classList.add(heavy?'shake-heavy':'shake')}
 function punchArena(){const a=document.querySelector('#arena');a.classList.remove('victorypunch');void a.offsetWidth;a.classList.add('victorypunch')}
 function redFlash(){const el=document.querySelector('#redflash');el.classList.remove('show');void el.offsetWidth;el.classList.add('show')}
@@ -410,14 +477,14 @@ function swordFlash(el,kind){
  arenaEl.appendChild(div);
  setTimeout(()=>div.remove(),220);
 }
-function spawnParticles(el){
+function spawnParticles(el,count){
  const arenaEl=document.querySelector('#arena');
  const rect=el.getBoundingClientRect(),arenaRect=arenaEl.getBoundingClientRect();
  const cx=rect.left-arenaRect.left+rect.width*0.4, cy=rect.top-arenaRect.top+rect.height*0.35;
- for(let i=0;i<6;i++){
+ for(let i=0;i<(count||6);i++){
   const p=document.createElement('div');
   p.className='particle';
-  const ang=Math.random()*Math.PI*2, dist=18+Math.random()*22;
+  const ang=Math.random()*Math.PI*2, dist=26+Math.random()*32;
   p.style.left=cx+'px';p.style.top=cy+'px';
   p.style.setProperty('--tx',Math.cos(ang)*dist+'px');
   p.style.setProperty('--ty',Math.sin(ang)*dist+'px');
@@ -427,7 +494,8 @@ function spawnParticles(el){
 }
 
 function startDefending(){
- if(locked||db.disabled||shield<shieldParams().cost)return;
+ if(locked||defending)return;
+ if(!canDefend()){document.querySelector('#log').textContent='Your shield is too worn — give it a moment to recover.';return}
  defending=true;db.textContent='🛡️ DEFENDING';
  const p=document.querySelector('#player');p.src='assets/knight/defend.png';p.classList.add('defendpose');
 }
@@ -438,17 +506,26 @@ function stopDefending(){
  updateShield();
 }
 const db=document.querySelector('#defend');
-db.addEventListener('pointerdown',e=>{e.preventDefault();startDefending()});
-['pointerup','pointercancel','pointerleave'].forEach(ev=>db.addEventListener(ev,()=>stopDefending()));
+// Capture the pointer so a small finger drift off the button doesn't drop the block.
+db.addEventListener('pointerdown',e=>{
+ e.preventDefault();
+ try{db.setPointerCapture?.(e.pointerId)}catch(err){}
+ startDefending();
+});
+['pointerup','pointercancel'].forEach(ev=>db.addEventListener(ev,e=>{
+ try{db.releasePointerCapture?.(e.pointerId)}catch(err){}
+ stopDefending();
+}));
 document.querySelector('#slash').addEventListener('pointerdown',e=>{e.preventDefault();resolveAttack('slash')});
 document.querySelector('#thrust').addEventListener('pointerdown',e=>{e.preventDefault();resolveAttack('thrust')});
 function classifySwipe(dx,dy){
- if(Math.hypot(dx,dy)<30)return null;
- if(Math.abs(dy)>Math.abs(dx)*1.2&&dy<-30)return 'parry';
+ // A tap is a deliberate input too — treat it as a quick slash rather than dropping it.
+ if(Math.hypot(dx,dy)<24)return 'slash';
+ if(Math.abs(dy)>Math.abs(dx)*1.2&&dy<-24)return 'parry';
  const angle=Math.atan2(-dy,dx)*180/Math.PI;
- if(dx>0&&angle>=20&&angle<70)return 'slash';
- if(dx>0&&angle<=-20&&angle>=-70)return 'thrust';
- return null;
+ if(angle>=15&&angle<75)return 'slash';
+ if(angle<=-15&&angle>=-75)return 'thrust';
+ return 'slash';
 }
 const arena=document.querySelector('#arena');
 let arenaHolding=false;
@@ -457,11 +534,11 @@ arena.addEventListener('pointerdown',e=>{
  try{arena.setPointerCapture?.(e.pointerId)}catch(err){}
  const rect=arena.getBoundingClientRect();
  const relX=(e.clientX-rect.left)/rect.width;
- if(relX<=0.42&&!db.disabled){startDefending();arenaHolding=true}else{arenaHolding=false}
+ if(relX<=0.42&&canDefend()){startDefending();arenaHolding=true}else{arenaHolding=false}
 });
 arena.addEventListener('pointermove',e=>{
  if(!arenaHolding)return;
- if(Math.hypot(e.clientX-startX,e.clientY-startY)>26){stopDefending();arenaHolding=false}
+ if(Math.hypot(e.clientX-startX,e.clientY-startY)>24){stopDefending();arenaHolding=false}
 });
 arena.addEventListener('pointerup',e=>{
  if(arenaHolding){stopDefending();arenaHolding=false;return}
