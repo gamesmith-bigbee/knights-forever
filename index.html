@@ -66,6 +66,19 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
 .countdown.show{display:flex}.countdown.fight{color:var(--gold);font-size:56px}
 .countdown.pop{animation:countPop .68s ease-out}
 @keyframes countPop{0%{transform:scale(.3);opacity:0}30%{transform:scale(1.2);opacity:1}50%{transform:scale(1)}85%{opacity:1}100%{opacity:0;transform:scale(1.05)}}
+.fightload{position:absolute;inset:0;z-index:16;display:none;flex-direction:column;background:#000}
+.fightload.show{display:flex}
+.fl-half{position:relative;flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;background-size:cover;background-position:center}
+.fl-top{border-bottom:3px solid var(--ink)}
+.fl-portrait{height:80%;width:auto;object-fit:contain;filter:drop-shadow(0 8px 0 rgba(0,0,0,.4));opacity:0}
+.fl-top .fl-portrait{animation:flInLeft .5s ease-out forwards}
+.fl-bottom .fl-portrait{transform:scaleX(-1);animation:flInRight .5s ease-out forwards}
+@keyframes flInLeft{0%{opacity:0;transform:translateX(-70px)}100%{opacity:1;transform:translateX(0)}}
+@keyframes flInRight{0%{opacity:0;transform:translateX(70px) scaleX(-1)}100%{opacity:1;transform:translateX(0) scaleX(-1)}}
+.fl-name{position:absolute;bottom:14px;font:900 18px Georgia,serif;color:#fff6df;text-shadow:0 2px 0 rgba(0,0,0,.6);background:rgba(20,17,15,.45);padding:5px 16px;border-radius:20px;white-space:nowrap}
+.fl-top .fl-name{bottom:auto;top:14px}
+.fl-vs{position:absolute;left:50%;top:50%;transform:translate(-50%,-50%) scale(.3);width:76px;height:76px;border-radius:50%;background:var(--paper);border:4px solid var(--ink);box-shadow:0 5px 0 var(--ink);display:flex;align-items:center;justify-content:center;font:900 22px Georgia,serif;color:var(--red);z-index:3;opacity:0;animation:flVsPop .45s .4s cubic-bezier(.34,1.56,.64,1) forwards}
+@keyframes flVsPop{0%{opacity:0;transform:translate(-50%,-50%) scale(.3) rotate(-25deg)}70%{opacity:1;transform:translate(-50%,-50%) scale(1.18) rotate(6deg)}100%{opacity:1;transform:translate(-50%,-50%) scale(1) rotate(0)}}
 .arena.shake{animation:shake .4s}@keyframes shake{10%,90%{transform:translateX(-3px)}20%,80%{transform:translateX(5px)}30%,50%,70%{transform:translateX(-7px)}40%,60%{transform:translateX(7px)}}
 .arena.victorypunch{animation:victoryPunch .5s ease-out}@keyframes victoryPunch{0%{transform:scale(1)}35%{transform:scale(1.035)}100%{transform:scale(1)}}
 .fighter.pop{animation:popIn .5s ease-out}@keyframes popIn{0%{transform:scale(.6);opacity:.4}60%{transform:scale(1.12)}100%{transform:scale(1)}}
@@ -157,6 +170,17 @@ h1,h2,h3{margin:0 0 8px}.muted{opacity:.7}
     <div class="ground"></div>
     <img id="player" class="fighter player" src="assets/knight/idle-front.png" alt="">
     <img id="enemy" class="fighter enemy" src="assets/knight/idle-front.png" alt="">
+    <div class="fightload" id="fightload">
+      <div class="fl-half fl-top" id="flTop">
+        <img class="fl-portrait" id="flPlayerImg" src="assets/knight/idle-front.png" alt="">
+        <div class="fl-name">You</div>
+      </div>
+      <div class="fl-half fl-bottom" id="flBottom">
+        <img class="fl-portrait" id="flEnemyImg" src="" alt="">
+        <div class="fl-name" id="flEnemyName">Opponent</div>
+      </div>
+      <div class="fl-vs">VS</div>
+    </div>
   </div>
   <div class="controls">
     <button id="defend" class="control defend">🛡️ DEFEND</button>
@@ -272,6 +296,24 @@ function reset(){
  const p=document.querySelector('#player'),e=document.querySelector('#enemy');
  p.src='assets/knight/idle-front.png';p.className='fighter player';
  e.src=currentEnemy.idle;e.className='fighter enemy';e.style.animationDuration='';e.style.filter=currentEnemy.hue?'hue-rotate('+currentEnemy.hue+'deg)':'';
+ showFightLoad();
+}
+const FIGHTLOAD_MS=1900;
+function showFightLoad(){
+ const fl=document.querySelector('#fightload');
+ document.querySelector('#flPlayerImg').src='assets/knight/idle-front.png';
+ const eImg=document.querySelector('#flEnemyImg');
+ eImg.src=currentEnemy.idle;eImg.style.filter=currentEnemy.hue?'hue-rotate('+currentEnemy.hue+'deg)':'';
+ document.querySelector('#flEnemyName').textContent=currentEnemy.name;
+ document.querySelector('#flTop').style.backgroundImage="url('assets/knight/char-bg.png')";
+ document.querySelector('#flBottom').style.backgroundImage="url('assets/"+currentEnemy.folder+"/char-bg.png')";
+ fl.querySelectorAll('.fl-portrait,.fl-vs').forEach(el=>{el.style.animation='none';void el.offsetWidth;el.style.animation=''});
+ fl.classList.add('show');
+ timer=setTimeout(dismissFightLoad,FIGHTLOAD_MS);
+}
+function dismissFightLoad(){
+ clearTimeout(timer);
+ document.querySelector('#fightload').classList.remove('show');
  countdownThenStart();
 }
 function countdownThenStart(){
@@ -505,6 +547,7 @@ function stopDefending(){
  const p=document.querySelector('#player');p.src='assets/knight/idle-front.png';p.classList.remove('defendpose');
  updateShield();
 }
+document.querySelector('#fightload').addEventListener('pointerdown',e=>{e.preventDefault();dismissFightLoad()});
 const db=document.querySelector('#defend');
 // Capture the pointer so a small finger drift off the button doesn't drop the block.
 db.addEventListener('pointerdown',e=>{
