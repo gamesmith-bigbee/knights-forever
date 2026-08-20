@@ -220,14 +220,17 @@ const S={
 let hp=100, ehp=100, defending=false, locked=false, swinging=false, timer=null, recoverTimer=null, startX=0,startY=0;
 const STAMINA_MAX=100, STAMINA_REGEN=40;
 const SLASH_COST=30, THRUST_COST=44;
-const OUTSIDE_BLOCK_CHANCE={slash:0.45,thrust:0.55};
+const OUTSIDE_BLOCK_CHANCE={slash:0.5,thrust:0.6};
+const BLOCK_STAMINA_PENALTY=12;
 const RECOVER_WINDOW_MS=1400;
 let stamina=STAMINA_MAX, staminaTimer=null;
 let shield=100, shieldTimer=null;
 // Shields still regenerate while held, just slower — holding block is the move the
-// tutorial teaches, so it must never drain to a dead stop.
+// tutorial teaches, so it must never drain to a dead stop just from holding.
+// The cost of actually absorbing a hit outweighs that trickle, so a shield that's
+// blocking repeatedly still wears down over the course of a fight.
 const HELD_REGEN_SCALE=0.5;
-function shieldParams(){return S.shield==='steel'?{max:150,cost:22,regen:20}:{max:100,cost:26,regen:14}}
+function shieldParams(){return S.shield==='steel'?{max:150,cost:27,regen:18}:{max:100,cost:34,regen:12}}
 const PARRY_WINDOW_MS=380;
 let telegraphStart=0;
 // phase: 'idle' (enemy waiting) | 'telegraph' (enemy winding up/swinging) | 'recover' (staggered after a perfect parry) | 'finished'
@@ -255,7 +258,7 @@ function go(id){document.querySelectorAll('.page').forEach(x=>x.classList.remove
 // handlers explain why nothing happened.
 function canSlash(){return stamina>=SLASH_COST&&!locked}
 function canThrust(){return stamina>=THRUST_COST&&!locked}
-function canDefend(){return shield>=shieldParams().cost&&!locked}
+function canDefend(){return shield>=shieldParams().cost&&!locked&&!swinging}
 function updateStamina(){
  const sBtn=document.querySelector('#slash'),tBtn=document.querySelector('#thrust');
  const pct=Math.round(stamina)+'%';
@@ -413,6 +416,7 @@ function resolveAttack(kind){
  if(locked||phase==='finished'||swinging)return;
  const cost=kind==='thrust'?THRUST_COST:SLASH_COST;
  if(stamina<cost){document.querySelector('#log').textContent='Too tired for a '+kind+' — catch your breath.';return}
+ if(defending)stopDefending();
  swinging=true;
  stamina-=cost;updateStamina();
  const p=document.querySelector('#player'),e=document.querySelector('#enemy');
@@ -427,9 +431,10 @@ function resolveAttack(kind){
   if(locked)return;
   if(blocked){
    // Deliberately dull: a block should feel nothing like a clean hit.
+   stamina=Math.max(0,stamina-BLOCK_STAMINA_PENALTY);updateStamina();
    setSprite(e,'assets/'+currentEnemy.folder+'/defend.png',currentEnemy.idle);e.className='fighter enemy defendpose';
    document.querySelector('#telegraph').textContent='🛡️ BLOCKED!';
-   document.querySelector('#log').textContent='The '+currentEnemy.name+' blocks your '+kind+'!';
+   document.querySelector('#log').textContent='The '+currentEnemy.name+' blocks your '+kind+' — overextended, you stagger.';
    impactRing(e,true);
    p.className='fighter player';p.src='assets/knight/idle-front.png';
   }else{
@@ -537,6 +542,7 @@ function spawnParticles(el,count){
 
 function startDefending(){
  if(locked||defending)return;
+ if(swinging){document.querySelector('#log').textContent="You're mid-swing — can't raise your shield yet.";return}
  if(!canDefend()){document.querySelector('#log').textContent='Your shield is too worn — give it a moment to recover.';return}
  defending=true;db.textContent='🛡️ DEFENDING';
  const p=document.querySelector('#player');p.src='assets/knight/defend.png';p.classList.add('defendpose');
