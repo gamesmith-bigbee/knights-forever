@@ -244,6 +244,12 @@ const ENEMY_TYPES=[
 ];
 let currentEnemy=ENEMY_TYPES[0];
 
+function preloadImage(src){return new Promise(res=>{const img=new Image();img.onload=()=>res(true);img.onerror=()=>res(false);img.src=src})}
+// Warm the browser cache for every enemy's VS-screen art (portrait + backdrop) as soon as
+// the game loads, so the fight-load reveal doesn't stall on a cold fetch mid-animation.
+preloadImage('assets/knight/char-bg.png');
+ENEMY_TYPES.forEach(t=>{preloadImage(t.idle);preloadImage('assets/'+t.folder+'/char-bg.png')});
+
 function save(){
  localStorage.setItem('kk_gold',S.gold);localStorage.setItem('kk_xp',S.xp);localStorage.setItem('kk_level',S.level);
  localStorage.setItem('kk_sword',S.sword);localStorage.setItem('kk_shield',S.shield);localStorage.setItem('kk_armour',S.armour);localStorage.setItem('kk_chest',S.chest);
@@ -310,9 +316,23 @@ function showFightLoad(){
  document.querySelector('#flEnemyName').textContent=currentEnemy.name;
  document.querySelector('#flTop').style.backgroundImage="url('assets/knight/char-bg.png')";
  document.querySelector('#flBottom').style.backgroundImage="url('assets/"+currentEnemy.folder+"/char-bg.png')";
- fl.querySelectorAll('.fl-portrait,.fl-vs').forEach(el=>{el.style.animation='none';void el.offsetWidth;el.style.animation=''});
- fl.classList.add('show');
- timer=setTimeout(dismissFightLoad,FIGHTLOAD_MS);
+ const thisEnemy=currentEnemy;
+ // Wait for the portraits/backdrops to actually be decoded before playing the reveal —
+ // otherwise a cold cache shows the background with no character, or a flash of black.
+ // Capped so a genuinely failed load can't stall the fight from starting.
+ const ready=Promise.all([
+  preloadImage('assets/knight/idle-front.png'),
+  preloadImage('assets/knight/char-bg.png'),
+  preloadImage(thisEnemy.idle),
+  preloadImage('assets/'+thisEnemy.folder+'/char-bg.png')
+ ]);
+ const timeout=new Promise(res=>setTimeout(res,1500));
+ Promise.race([ready,timeout]).then(()=>{
+  if(currentEnemy!==thisEnemy)return;
+  fl.querySelectorAll('.fl-portrait,.fl-vs').forEach(el=>{el.style.animation='none';void el.offsetWidth;el.style.animation=''});
+  fl.classList.add('show');
+  timer=setTimeout(dismissFightLoad,FIGHTLOAD_MS);
+ });
 }
 function dismissFightLoad(){
  clearTimeout(timer);
