@@ -240,7 +240,7 @@ function setSprite(el,src,fallback){el.onerror=function(){el.onerror=null;el.src
 const ENEMY_TYPES=[
  {name:'Bandit',hue:0,folder:'bandit',idle:'assets/bandit/idle.png',attacks:['assets/bandit/attack.png'],dmgMin:10,dmgMax:16,delayMin:1300,delayMax:2800,reactMs:900,minLevel:1},
  {name:'Orc Raider',hue:0,folder:'orc',idle:'assets/orc/idle.png',attacks:['assets/orc/attack.png','assets/orc/slash.png','assets/orc/thrust.png'],dmgMin:13,dmgMax:19,delayMin:1100,delayMax:2400,reactMs:780,minLevel:1},
- {name:'Knight Captain',hue:280,folder:'knight',idle:'assets/knight/idle-front.png',attacks:['assets/knight/attack.png'],dmgMin:16,dmgMax:22,delayMin:950,delayMax:2000,reactMs:650,minLevel:4}
+ {name:'Knight Captain',hue:0,folder:'knight-captain',idle:'assets/knight-captain/idle-front.png',attacks:['assets/knight-captain/attack.png'],dmgMin:16,dmgMax:22,delayMin:950,delayMax:2000,reactMs:650,minLevel:4}
 ];
 let currentEnemy=ENEMY_TYPES[0];
 
